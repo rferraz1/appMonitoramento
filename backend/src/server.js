@@ -34,6 +34,16 @@ app.use('/api/analytics', authRequired, analyticsRouter);
 app.use('/api/reports', authRequired, reportsRouter);
 app.use('/api/excel', authRequired, excelRouter);
 
+const frontendDist = path.resolve(process.cwd(), 'frontend/dist');
+app.use(express.static(frontendDist));
+app.get('*', (_req, res, next) => {
+  const indexFile = path.join(frontendDist, 'index.html');
+  if (!indexFile.startsWith(frontendDist) || !path.isAbsolute(indexFile)) return next();
+  res.sendFile(indexFile, (error) => {
+    if (error) next();
+  });
+});
+
 app.listen(port, () => {
   console.log(`API rodando em http://localhost:${port}/api`);
 });

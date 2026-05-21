@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: app-monitoramento
+    runtime: node
+    buildCommand: npm install && npm run install:all && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_FILE
+        value: /var/data/monitoramento.sqlite
+      - key: JWT_SECRET
+        generateValue: true
+    disk:
+      name: app-monitoramento-data
+      mountPath: /var/data
+      sizeGB: 1
