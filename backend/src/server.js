@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import express from 'express';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { migrate } from './db/database.js';
 import { seed } from './db/seed.js';
 import { authRequired } from './middleware/auth.js';
@@ -19,6 +20,8 @@ seed();
 
 const app = express();
 const port = process.env.PORT || 4000;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
 app.use(express.json({ limit: '15mb' }));
@@ -34,7 +37,7 @@ app.use('/api/analytics', authRequired, analyticsRouter);
 app.use('/api/reports', authRequired, reportsRouter);
 app.use('/api/excel', authRequired, excelRouter);
 
-const frontendDist = path.resolve(process.cwd(), 'frontend/dist');
+const frontendDist = path.resolve(__dirname, '../../frontend/dist');
 app.use(express.static(frontendDist));
 app.get('*', (_req, res, next) => {
   const indexFile = path.join(frontendDist, 'index.html');
