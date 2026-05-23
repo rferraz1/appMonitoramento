@@ -19,10 +19,10 @@ function buildIntelbrasRtsp({ stream_ip, stream_login, stream_password }) {
 function nextExcelCode() {
   const rows = db.prepare('SELECT excel_code FROM cameras WHERE excel_code IS NOT NULL').all();
   const max = rows.reduce((current, row) => {
-    const match = String(row.excel_code).match(/CAM\s+(\d+)/i);
+    const match = String(row.excel_code).match(/(\d+)$/);
     return match ? Math.max(current, Number(match[1])) : current;
   }, 0);
-  return `CAM ${String(max + 1).padStart(2, '0')}`;
+  return `NEW-${String(max + 1).padStart(2, '0')}`;
 }
 
 camerasRouter.get('/', (req, res) => {
@@ -34,7 +34,7 @@ camerasRouter.get('/', (req, res) => {
   `;
   const params = [];
   if (active === 'true') sql += ' WHERE cameras.active = 1 AND vessels.active = 1';
-  sql += ' ORDER BY COALESCE(cameras.excel_code, cameras.name), cameras.name';
+  sql += ' ORDER BY vessels.id, COALESCE(cameras.excel_code, cameras.name), cameras.name';
   res.json(db.prepare(sql).all(...params).map(mapCamera));
 });
 

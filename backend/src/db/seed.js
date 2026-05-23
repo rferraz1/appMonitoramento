@@ -1,31 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { db, migrate } from './database.js';
-
-const cameras = [
-  ['CAM 01', 'BARU ANDES', true],
-  ['CAM 02', 'BARU SIERRA', true],
-  ['CAM 03', 'BARU 1935', true],
-  ['CAM 04', 'BARU SURFER', true],
-  ['CAM 05', 'BARU 1000', true],
-  ['CAM 06', 'BARU WORK STATION', true],
-  ['CAM 07', 'BARU MARACANA', true],
-  ['CAM 08', 'BARU ILHA', true],
-  ['CAM 09', 'BARU CENTRO', true],
-  ['CAM 10', 'BARU FLAMENGO', true],
-  ['CAM 11', 'BARU PEDROZA', true],
-  ['CAM 12', 'BARU FOSTER', true],
-  ['CAM 13', 'BARU MARAGA', true],
-  ['CAM 14', 'Reserva/Futura 01', false],
-  ['CAM 15', 'Reserva/Futura 02', false],
-  ['CAM 16', 'Reserva/Futura 03', false],
-  ['CAM 17', 'Reserva/Futura 04', false],
-  ['CAM 18', 'Reserva/Futura 05', false],
-  ['CAM 19', 'Reserva/Futura 06', false],
-  ['CAM 20', 'Reserva/Futura 07', false],
-  ['CAM 21', 'Reserva/Futura 08', false],
-  ['CAM 22', 'Reserva/Futura 09', false],
-  ['CAM 23', 'Reserva/Futura 10', false]
-];
+import { cameraGroups, excelCodeFor } from './cameraCatalog.js';
 
 export function seed() {
   migrate();
@@ -47,9 +22,11 @@ export function seed() {
     `);
 
     const transaction = db.transaction(() => {
-      const vesselId = insertVessel.run('Baru Offshore').lastInsertRowid;
-      cameras.forEach(([code, name, active]) => {
-        insertCamera.run(vesselId, code, name, '', active ? 1 : 0);
+      cameraGroups.forEach((group) => {
+        const vesselId = insertVessel.run(group.name).lastInsertRowid;
+        group.cameras.forEach((name, index) => {
+          insertCamera.run(vesselId, excelCodeFor(group.prefix, index), name, '', 1);
+        });
       });
     });
 

@@ -8,7 +8,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const defaultLocalWorkbook = '/Users/rodolfoferraz/Downloads/PLANILHAFINAL.xlsx';
 const fallbackWorkbook = path.resolve(__dirname, '../../templates/PLANILHAFINAL.xlsx');
-const cameraSlotsPerDay = 23;
 
 function localWorkbookPath() {
   const configured = process.env.EXCEL_LOCAL_FILE || defaultLocalWorkbook;
@@ -16,21 +15,27 @@ function localWorkbookPath() {
   return fallbackWorkbook;
 }
 
-function cameraNumber(code) {
-  const match = String(code || '').match(/CAM\s+(\d+)/i);
-  return match ? Number(match[1]) : null;
-}
-
-function rowFor(date, code) {
-  const day = Number(date.slice(8, 10));
-  const number = cameraNumber(code);
-  if (!day || !number) return null;
-  return workbookTemplate.dataStartRow + (day - 1) * cameraSlotsPerDay + (number - 1);
-}
-
 function setIfCellExists(worksheet, address, value) {
   const cell = worksheet.getCell(address);
   cell.value = value ?? '';
+}
+
+function isoCellDate(cell) {
+  if (cell.value instanceof Date) return cell.value.toISOString().slice(0, 10);
+  const text = cell.text;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  return '';
+}
+
+function findRowByDateAndCode(worksheet, date, code) {
+  for (let row = workbookTemplate.dataStartRow; row <= worksheet.rowCount; row += 1) {
+    if (worksheet.getCell(`C${row}`).text === code && isoCellDate(worksheet.getCell(`A${row}`)) === date) return row;
+  }
+  return null;
+}
+
+function nextAppendRow(worksheet) {
+  return Math.max(worksheet.rowCount + 1, workbookTemplate.dataStartRow);
 }
 
 function updateCameraNames(workbook, cameras) {
@@ -42,12 +47,21 @@ function updateCameraNames(workbook, cameras) {
 
     const config = workbook.getWorksheet(workbookTemplate.configSheet);
     if (config) {
+      let found = false;
       for (let row = workbookTemplate.dataStartRow + 1; row <= config.rowCount; row += 1) {
         if (config.getCell(`A${row}`).text === code) {
           config.getCell(`B${row}`).value = camera.name;
           config.getCell(`C${row}`).value = camera.vessel_name || camera.location || '';
           config.getCell(`D${row}`).value = camera.active ? 'Ativa' : 'Futura';
+          found = true;
         }
+      }
+      if (!found) {
+        const row = config.rowCount + 1;
+        config.getCell(`A${row}`).value = code;
+        config.getCell(`B${row}`).value = camera.name;
+        config.getCell(`C${row}`).value = camera.vessel_name || camera.location || '';
+        config.getCell(`D${row}`).value = camera.active ? 'Ativa' : 'Futura';
       }
     }
 
@@ -67,15 +81,13 @@ function updateDailyChecks(workbook, checks) {
 
   for (const check of checks) {
     const code = check.excel_code;
-    const row = rowFor(check.date, code);
     const sheet = sheetNameForDate(check.date);
-    if (!row) continue;
+    if (!code) continue;
 
-    const key = `${sheet}:${row}:${code}`;
+    const key = `${sheet}:${check.date}:${code}`;
     if (!grouped.has(key)) {
       grouped.set(key, {
         sheet,
-        row,
         code,
         date: check.date,
         cameraName: check.camera_name,
@@ -97,20 +109,21 @@ function updateDailyChecks(workbook, checks) {
   for (const item of grouped.values()) {
     const worksheet = workbook.getWorksheet(item.sheet);
     if (!worksheet) continue;
+    const row = findRowByDateAndCode(worksheet, item.date, item.code) || nextAppendRow(worksheet);
 
-    setIfCellExists(worksheet, `${workbookTemplate.columns.date}${item.row}`, new Date(`${item.date}T03:00:00.000Z`));
-    setIfCellExists(worksheet, `${workbookTemplate.columns.cameraCode}${item.row}`, item.code);
-    setIfCellExists(worksheet, `${workbookTemplate.columns.cameraName}${item.row}`, item.cameraName);
-    setIfCellExists(worksheet, `${workbookTemplate.columns.vesselLocation}${item.row}`, item.vesselLocation || '');
+    setIfCellExists(worksheet, `${workbookTemplate.columns.date}${row}`, new Date(`${item.date}T03:00:00.000Z`));
+    setIfCellExists(worksheet, `${workbookTemplate.columns.cameraCode}${row}`, item.code);
+    setIfCellExists(worksheet, `${workbookTemplate.columns.cameraName}${row}`, item.cameraName);
+    setIfCellExists(worksheet, `${workbookTemplate.columns.vesselLocation}${row}`, item.vesselLocation || '');
 
     for (const slot of ['10:00', '13:00', '16:00']) {
       const column = workbookTemplate.columns[slot];
-      if (item[column]) setIfCellExists(worksheet, `${column}${item.row}`, item[column]);
+      if (item[column]) setIfCellExists(worksheet, `${column}${row}`, item[column]);
     }
 
-    setIfCellExists(worksheet, `${workbookTemplate.columns.technicalEvent}${item.row}`, item.technicalEvents.join('\n'));
-    setIfCellExists(worksheet, `${workbookTemplate.columns.behavior}${item.row}`, item.behaviors.join('\n'));
-    setIfCellExists(worksheet, `${workbookTemplate.columns.responsible}${item.row}`, item.responsible);
+    setIfCellExists(worksheet, `${workbookTemplate.columns.technicalEvent}${row}`, item.technicalEvents.join('\n'));
+    setIfCellExists(worksheet, `${workbookTemplate.columns.behavior}${row}`, item.behaviors.join('\n'));
+    setIfCellExists(worksheet, `${workbookTemplate.columns.responsible}${row}`, item.responsible);
   }
 
   return grouped.size;

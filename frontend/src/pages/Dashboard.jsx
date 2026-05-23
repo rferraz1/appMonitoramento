@@ -57,17 +57,30 @@ function TrafficStatus({ value, onChange }) {
 export default function Dashboard() {
   const [date, setDate] = useState(today);
   const [data, setData] = useState(null);
+  const [allGroups, setAllGroups] = useState([]);
+  const [selectedVesselId, setSelectedVesselId] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
   async function load() {
-    const response = await api.get(`/checks/day/${date}`);
+    const response = await api.get(`/checks/day/${date}`, {
+      params: selectedVesselId ? { vessel_id: selectedVesselId } : {}
+    });
     setData(response.data);
   }
 
+  async function loadGroups() {
+    const response = await api.get('/vessels');
+    setAllGroups(response.data.filter((vessel) => vessel.active));
+  }
+
+  useEffect(() => {
+    loadGroups();
+  }, []);
+
   useEffect(() => {
     load();
-  }, [date]);
+  }, [date, selectedVesselId]);
 
   const flatChecks = useMemo(() => {
     if (!data) return [];
@@ -111,9 +124,15 @@ export default function Dashboard() {
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
         <div>
           <h1 className="text-2xl font-bold text-slate-950">Dashboard Diário</h1>
-          <p className="text-sm text-slate-500">Selecione uma data para ver e editar somente os registros daquele dia.</p>
+          <p className="text-sm text-slate-500">Selecione a data e o grupo para checar as câmeras nos horários fixos.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
+          <select className="input min-w-64" value={selectedVesselId} onChange={(event) => setSelectedVesselId(event.target.value)}>
+            <option value="">Todos os grupos</option>
+            {allGroups.map((vessel) => (
+              <option value={vessel.id} key={vessel.id}>{vessel.name}</option>
+            ))}
+          </select>
           <input type="date" className="input" value={date} onChange={(event) => setDate(event.target.value)} />
           <button className="btn-primary" onClick={save} disabled={saving}>
             <Save size={16} />
@@ -123,7 +142,7 @@ export default function Dashboard() {
       </div>
 
       <div className={`rounded-lg border px-4 py-3 text-sm ${completed === expected ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
-        {completed === expected ? 'Todas as câmeras foram checadas nos 3 horários.' : `Pendências: ${expected - completed} de ${expected} verificações.`}
+        {completed === expected ? 'Todas as câmeras exibidas foram checadas nos 3 horários.' : `Pendências no grupo exibido: ${expected - completed} de ${expected} verificações.`}
       </div>
       {message && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div>}
 

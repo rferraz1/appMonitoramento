@@ -32,13 +32,15 @@ function camerasForSync() {
 }
 
 checksRouter.get('/day/:date', (req, res) => {
+  const { vessel_id } = req.query;
   const cameras = db.prepare(`
     SELECT cameras.*, vessels.name AS vessel_name, vessels.active AS vessel_active
     FROM cameras
     JOIN vessels ON vessels.id = cameras.vessel_id
     WHERE cameras.active = 1 AND vessels.active = 1
-    ORDER BY vessels.name, cameras.name
-  `).all();
+    ${vessel_id ? 'AND vessels.id = ?' : ''}
+    ORDER BY vessels.id, COALESCE(cameras.excel_code, cameras.name), cameras.name
+  `).all(...(vessel_id ? [vessel_id] : []));
 
   const checks = db.prepare(`
     SELECT checks.*, users.name AS user_name
@@ -52,6 +54,7 @@ checksRouter.get('/day/:date', (req, res) => {
     if (!acc[key]) acc[key] = { id: camera.vessel_id, name: camera.vessel_name, cameras: [] };
     acc[key].cameras.push({
       id: camera.id,
+      excel_code: camera.excel_code,
       name: camera.name,
       location: camera.location,
       checks: slots.map((slot) => checks.find((c) => c.camera_id === camera.id && c.time_slot === slot) || {

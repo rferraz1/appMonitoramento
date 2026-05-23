@@ -4,7 +4,7 @@ import { db } from '../db/database.js';
 export const vesselsRouter = Router();
 
 vesselsRouter.get('/', (_req, res) => {
-  const vessels = db.prepare('SELECT * FROM vessels ORDER BY active DESC, name').all();
+  const vessels = db.prepare('SELECT * FROM vessels ORDER BY active DESC, id').all();
   res.json(vessels.map((v) => ({ ...v, active: Boolean(v.active) })));
 });
 
