@@ -12,6 +12,7 @@ import Cadastros from './pages/Cadastros.jsx';
 import Analitico from './pages/Analitico.jsx';
 import Relatorios from './pages/Relatorios.jsx';
 import ExcelIntegracao from './pages/ExcelIntegracao.jsx';
+import Usuarios from './pages/Usuarios.jsx';
 
 const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
@@ -28,7 +29,8 @@ const router = createBrowserRouter([
       { path: 'cadastros', element: <Cadastros /> },
       { path: 'analitico', element: <Analitico /> },
       { path: 'relatorios', element: <Relatorios /> },
-      { path: 'excel', element: <ExcelIntegracao /> }
+      { path: 'excel', element: <ExcelIntegracao /> },
+      { path: 'usuarios', element: <Usuarios /> }
     ]
   },
   { path: '*', element: <Navigate to="/" replace /> }
