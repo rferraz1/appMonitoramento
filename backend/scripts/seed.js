@@ -1,4 +1,4 @@
 import { seed } from '../src/db/seed.js';
 
-seed();
+await seed();
 console.log('Seed executado com sucesso.');

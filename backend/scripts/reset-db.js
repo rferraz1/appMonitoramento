@@ -12,5 +12,5 @@ if (fs.existsSync(`${dbFile}-wal`)) fs.rmSync(`${dbFile}-wal`);
 if (fs.existsSync(`${dbFile}-shm`)) fs.rmSync(`${dbFile}-shm`);
 
 const { seed } = await import('../src/db/seed.js');
-seed();
+await seed();
 console.log(`Banco resetado em ${dbFile}`);

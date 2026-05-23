@@ -1,14 +1,14 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { db } from '../db/database.js';
+import { get, run } from '../db/database.js';
 import { authRequired } from '../middleware/auth.js';
 
 export const authRouter = Router();
 
-authRouter.post('/login', (req, res) => {
+authRouter.post('/login', async (req, res) => {
   const { email, password } = req.body;
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  const user = await get('SELECT * FROM users WHERE email = ?', [email]);
 
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
     return res.status(401).json({ message: 'Usuário ou senha inválidos.' });
@@ -25,15 +25,15 @@ authRouter.get('/me', authRequired, (req, res) => {
   res.json(req.user);
 });
 
-authRouter.put('/password', authRequired, (req, res) => {
+authRouter.put('/password', authRequired, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   if (!newPassword || newPassword.length < 6) {
     return res.status(400).json({ message: 'A nova senha deve ter pelo menos 6 caracteres.' });
   }
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  const user = await get('SELECT * FROM users WHERE id = ?', [req.user.id]);
   if (!bcrypt.compareSync(currentPassword || '', user.password_hash)) {
     return res.status(400).json({ message: 'Senha atual inválida.' });
   }
-  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(bcrypt.hashSync(newPassword, 10), req.user.id);
+  await run('UPDATE users SET password_hash = ? WHERE id = ?', [bcrypt.hashSync(newPassword, 10), req.user.id]);
   res.json({ message: 'Senha alterada com sucesso.' });
 });

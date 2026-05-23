@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
-import { db } from '../db/database.js';
+import { get } from '../db/database.js';
 
-export function authRequired(req, res, next) {
+export async function authRequired(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
 
@@ -9,7 +9,7 @@ export function authRequired(req, res, next) {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
-    const user = db.prepare('SELECT id, name, email, role FROM users WHERE id = ?').get(payload.id);
+    const user = await get('SELECT id, name, email, role FROM users WHERE id = ?', [payload.id]);
     if (!user) return res.status(401).json({ message: 'Usuário inválido.' });
     req.user = user;
     next();

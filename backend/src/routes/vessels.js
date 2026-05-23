@@ -1,23 +1,34 @@
 import { Router } from 'express';
-import { db } from '../db/database.js';
+import { all, get, isPostgres, run } from '../db/database.js';
 
 export const vesselsRouter = Router();
 
-vesselsRouter.get('/', (_req, res) => {
-  const vessels = db.prepare('SELECT * FROM vessels ORDER BY active DESC, id').all();
-  res.json(vessels.map((v) => ({ ...v, active: Boolean(v.active) })));
+const mapVessel = (vessel) => ({ ...vessel, active: Boolean(vessel.active) });
+
+vesselsRouter.get('/', async (_req, res) => {
+  const vessels = await all('SELECT * FROM vessels ORDER BY active DESC, id');
+  res.json(vessels.map(mapVessel));
 });
 
-vesselsRouter.post('/', (req, res) => {
+vesselsRouter.post('/', async (req, res) => {
   const { name, active = true } = req.body;
-  if (!name?.trim()) return res.status(400).json({ message: 'Nome do barco é obrigatório.' });
-  const result = db.prepare('INSERT INTO vessels (name, active) VALUES (?, ?)').run(name.trim(), active ? 1 : 0);
-  res.status(201).json(db.prepare('SELECT * FROM vessels WHERE id = ?').get(result.lastInsertRowid));
+  if (!name?.trim()) return res.status(400).json({ message: 'Nome do grupo é obrigatório.' });
+
+  const vessel = await get(
+    'INSERT INTO vessels (name, active) VALUES (?, ?) RETURNING *',
+    [name.trim(), isPostgres ? Boolean(active) : active ? 1 : 0]
+  );
+  res.status(201).json(mapVessel(vessel));
 });
 
-vesselsRouter.put('/:id', (req, res) => {
+vesselsRouter.put('/:id', async (req, res) => {
   const { name, active = true } = req.body;
-  if (!name?.trim()) return res.status(400).json({ message: 'Nome do barco é obrigatório.' });
-  db.prepare('UPDATE vessels SET name = ?, active = ? WHERE id = ?').run(name.trim(), active ? 1 : 0, req.params.id);
-  res.json(db.prepare('SELECT * FROM vessels WHERE id = ?').get(req.params.id));
+  if (!name?.trim()) return res.status(400).json({ message: 'Nome do grupo é obrigatório.' });
+
+  await run('UPDATE vessels SET name = ?, active = ? WHERE id = ?', [
+    name.trim(),
+    isPostgres ? Boolean(active) : active ? 1 : 0,
+    req.params.id
+  ]);
+  res.json(mapVessel(await get('SELECT * FROM vessels WHERE id = ?', [req.params.id])));
 });

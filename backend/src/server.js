@@ -15,8 +15,8 @@ import { reportsRouter } from './routes/reports.js';
 import { excelRouter } from './routes/excel.js';
 
 dotenv.config();
-migrate();
-seed();
+await migrate();
+await seed();
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -47,6 +47,10 @@ app.get('*', (_req, res, next) => {
   });
 });
 
-app.listen(port, () => {
-  console.log(`API rodando em http://localhost:${port}/api`);
-});
+if (!process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`API rodando em http://localhost:${port}/api`);
+  });
+}
+
+export default app;

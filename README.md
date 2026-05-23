@@ -43,6 +43,30 @@ Interface em `http://localhost:5173`.
 npm run dev
 ```
 
+## Deploy na Vercel com banco externo
+
+Para hospedar grátis na Vercel, use um Postgres externo gratuito como Neon ou Supabase.
+
+Variáveis na Vercel:
+
+```bash
+DATABASE_URL=postgresql://...
+JWT_SECRET=um-segredo-grande
+NODE_ENV=production
+```
+
+Não defina `VITE_API_URL` na Vercel. O frontend usa `/api` no mesmo domínio.
+
+Build settings:
+
+```bash
+Install Command: npm install && npm run install:all
+Build Command: npm run build
+Output Directory: frontend/dist
+```
+
+O arquivo `vercel.json` já direciona `/api/*` para o backend Express serverless e as demais rotas para o React.
+
 ## Acesso inicial
 
 - Usuário: `admin`

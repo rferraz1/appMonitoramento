@@ -1,24 +1,145 @@
-import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
+import pg from 'pg';
 
 dotenv.config();
 
+const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dbFile = process.env.DATABASE_FILE || path.resolve(__dirname, '../../data/monitoramento.sqlite');
-const resolvedDbFile = path.isAbsolute(dbFile) ? dbFile : path.resolve(process.cwd(), dbFile);
+const databaseUrl = process.env.DATABASE_URL;
 
-fs.mkdirSync(path.dirname(resolvedDbFile), { recursive: true });
+export const isPostgres = Boolean(databaseUrl);
 
-export const db = new Database(resolvedDbFile);
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+let sqliteDb = null;
+let pool = null;
 
-export function migrate() {
-  db.exec(`
+if (isPostgres) {
+  pool = new Pool({
+    connectionString: databaseUrl,
+    ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: false }
+  });
+} else {
+  const { default: Database } = await import('better-sqlite3');
+  const dbFile = process.env.DATABASE_FILE || path.resolve(__dirname, '../../data/monitoramento.sqlite');
+  const resolvedDbFile = path.isAbsolute(dbFile) ? dbFile : path.resolve(process.cwd(), dbFile);
+  fs.mkdirSync(path.dirname(resolvedDbFile), { recursive: true });
+  sqliteDb = new Database(resolvedDbFile);
+  sqliteDb.pragma('journal_mode = WAL');
+  sqliteDb.pragma('foreign_keys = ON');
+}
+
+function normalizeSql(sql, params) {
+  if (!isPostgres) return { sql, params };
+  let index = 0;
+  return {
+    sql: sql
+      .replace(/CURRENT_TIMESTAMP/g, 'NOW()')
+      .replace(/\?/g, () => `$${++index}`),
+    params
+  };
+}
+
+export async function all(sql, params = []) {
+  if (!isPostgres) return sqliteDb.prepare(sql).all(...params);
+  const query = normalizeSql(sql, params);
+  const result = await pool.query(query.sql, query.params);
+  return result.rows;
+}
+
+export async function get(sql, params = []) {
+  if (!isPostgres) return sqliteDb.prepare(sql).get(...params);
+  const query = normalizeSql(sql, params);
+  const result = await pool.query(query.sql, query.params);
+  return result.rows[0];
+}
+
+export async function run(sql, params = []) {
+  if (!isPostgres) return sqliteDb.prepare(sql).run(...params);
+  const query = normalizeSql(sql, params);
+  const result = await pool.query(query.sql, query.params);
+  return { changes: result.rowCount, lastInsertRowid: result.rows?.[0]?.id };
+}
+
+export async function exec(sql) {
+  if (!isPostgres) return sqliteDb.exec(sql);
+  return pool.query(sql);
+}
+
+export async function migrate() {
+  if (isPostgres) {
+    await exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'operator',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS vessels (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS cameras (
+        id SERIAL PRIMARY KEY,
+        vessel_id INTEGER NOT NULL REFERENCES vessels(id),
+        excel_code TEXT,
+        name TEXT NOT NULL,
+        location TEXT,
+        image_url TEXT,
+        stream_url TEXT,
+        stream_ip TEXT,
+        stream_login TEXT,
+        stream_password TEXT,
+        active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS checks (
+        id SERIAL PRIMARY KEY,
+        date TEXT NOT NULL,
+        time_slot TEXT NOT NULL,
+        vessel_id INTEGER NOT NULL REFERENCES vessels(id),
+        camera_id INTEGER NOT NULL REFERENCES cameras(id),
+        status TEXT NOT NULL CHECK(status IN ('Online','Offline','Manutenção','Sem acesso')),
+        observation TEXT,
+        behavior_note TEXT,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(date, time_slot, camera_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS observations (
+        id SERIAL PRIMARY KEY,
+        check_id INTEGER NOT NULL REFERENCES checks(id),
+        note TEXT NOT NULL,
+        behavior_note TEXT,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS excel_settings (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        excel_url TEXT,
+        worksheet_name TEXT,
+        enabled BOOLEAN NOT NULL DEFAULT false,
+        last_sync_at TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    return;
+  }
+
+  sqliteDb.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -91,27 +212,9 @@ export function migrate() {
     );
   `);
 
-  try {
-    db.prepare('ALTER TABLE cameras ADD COLUMN excel_code TEXT').run();
-  } catch (error) {
-    if (!String(error.message).includes('duplicate column name')) throw error;
-  }
-
-  try {
-    db.prepare('ALTER TABLE cameras ADD COLUMN image_url TEXT').run();
-  } catch (error) {
-    if (!String(error.message).includes('duplicate column name')) throw error;
-  }
-
-  try {
-    db.prepare('ALTER TABLE cameras ADD COLUMN stream_url TEXT').run();
-  } catch (error) {
-    if (!String(error.message).includes('duplicate column name')) throw error;
-  }
-
-  for (const column of ['stream_ip', 'stream_login', 'stream_password']) {
+  for (const column of ['excel_code', 'image_url', 'stream_url', 'stream_ip', 'stream_login', 'stream_password']) {
     try {
-      db.prepare(`ALTER TABLE cameras ADD COLUMN ${column} TEXT`).run();
+      sqliteDb.prepare(`ALTER TABLE cameras ADD COLUMN ${column} TEXT`).run();
     } catch (error) {
       if (!String(error.message).includes('duplicate column name')) throw error;
     }
@@ -119,5 +222,5 @@ export function migrate() {
 }
 
 export function getDbFile() {
-  return resolvedDbFile;
+  return process.env.DATABASE_FILE || path.resolve(__dirname, '../../data/monitoramento.sqlite');
 }

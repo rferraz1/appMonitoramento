@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
-import { db } from '../db/database.js';
+import { all, get, isPostgres, run } from '../db/database.js';
 import { playbackUrl, startStream, stopStream, streamStatus } from '../services/rtspProxyService.js';
 
 export const camerasRouter = Router();
@@ -16,8 +16,8 @@ function buildIntelbrasRtsp({ stream_ip, stream_login, stream_password }) {
   return `rtsp://${login}:${password}@${ip}:554/cam/realmonitor?channel=1&subtype=0`;
 }
 
-function nextExcelCode() {
-  const rows = db.prepare('SELECT excel_code FROM cameras WHERE excel_code IS NOT NULL').all();
+async function nextExcelCode() {
+  const rows = await all('SELECT excel_code FROM cameras WHERE excel_code IS NOT NULL');
   const max = rows.reduce((current, row) => {
     const match = String(row.excel_code).match(/(\d+)$/);
     return match ? Math.max(current, Number(match[1])) : current;
@@ -25,7 +25,7 @@ function nextExcelCode() {
   return `NEW-${String(max + 1).padStart(2, '0')}`;
 }
 
-camerasRouter.get('/', (req, res) => {
+camerasRouter.get('/', async (req, res) => {
   const { active } = req.query;
   let sql = `
     SELECT cameras.*, vessels.name AS vessel_name
@@ -33,35 +33,41 @@ camerasRouter.get('/', (req, res) => {
     JOIN vessels ON vessels.id = cameras.vessel_id
   `;
   const params = [];
-  if (active === 'true') sql += ' WHERE cameras.active = 1 AND vessels.active = 1';
+  if (active === 'true') sql += ' WHERE cameras.active = ? AND vessels.active = ?';
+  if (active === 'true') params.push(isPostgres ? true : 1, isPostgres ? true : 1);
   sql += ' ORDER BY vessels.id, COALESCE(cameras.excel_code, cameras.name), cameras.name';
-  res.json(db.prepare(sql).all(...params).map(mapCamera));
+  res.json((await all(sql, params)).map(mapCamera));
 });
 
-camerasRouter.post('/', (req, res) => {
+camerasRouter.post('/', async (req, res) => {
   const { vessel_id, name, location = '', active = true } = req.body;
-  if (!vessel_id || !name?.trim()) return res.status(400).json({ message: 'Barco e nome da câmera são obrigatórios.' });
-  const result = db.prepare(`
+  if (!vessel_id || !name?.trim()) return res.status(400).json({ message: 'Grupo e nome da câmera são obrigatórios.' });
+
+  const camera = await get(`
     INSERT INTO cameras (vessel_id, excel_code, name, location, active)
     VALUES (?, ?, ?, ?, ?)
-  `).run(vessel_id, nextExcelCode(), name.trim(), location, active ? 1 : 0);
-  res.status(201).json(mapCamera(db.prepare('SELECT * FROM cameras WHERE id = ?').get(result.lastInsertRowid)));
+    RETURNING *
+  `, [vessel_id, await nextExcelCode(), name.trim(), location, isPostgres ? Boolean(active) : active ? 1 : 0]);
+  res.status(201).json(mapCamera(camera));
 });
 
-camerasRouter.put('/:id', (req, res) => {
+camerasRouter.put('/:id', async (req, res) => {
   const { vessel_id, name, location = '', active = true } = req.body;
-  if (!vessel_id || !name?.trim()) return res.status(400).json({ message: 'Barco e nome da câmera são obrigatórios.' });
-  db.prepare(`
-    UPDATE cameras SET vessel_id = ?, name = ?, location = ?, active = ? WHERE id = ?
-  `).run(vessel_id, name.trim(), location, active ? 1 : 0, req.params.id);
-  res.json(mapCamera(db.prepare('SELECT * FROM cameras WHERE id = ?').get(req.params.id)));
+  if (!vessel_id || !name?.trim()) return res.status(400).json({ message: 'Grupo e nome da câmera são obrigatórios.' });
+
+  await run('UPDATE cameras SET vessel_id = ?, name = ?, location = ?, active = ? WHERE id = ?', [
+    vessel_id,
+    name.trim(),
+    location,
+    isPostgres ? Boolean(active) : active ? 1 : 0,
+    req.params.id
+  ]);
+  res.json(mapCamera(await get('SELECT * FROM cameras WHERE id = ?', [req.params.id])));
 });
 
-camerasRouter.put('/:id/image', (req, res) => {
+camerasRouter.put('/:id/image', async (req, res) => {
   const { imageData } = req.body;
-  if (!imageData?.startsWith('data:image/')) {
-    return res.status(400).json({ message: 'Imagem inválida.' });
-  }
+  if (!imageData?.startsWith('data:image/')) return res.status(400).json({ message: 'Imagem inválida.' });
 
   const match = imageData.match(/^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/);
   if (!match) return res.status(400).json({ message: 'Formato de imagem não suportado.' });
@@ -76,11 +82,11 @@ camerasRouter.put('/:id/image', (req, res) => {
   fs.writeFileSync(filePath, buffer);
 
   const imageUrl = `/uploads/cameras/${filename}`;
-  db.prepare('UPDATE cameras SET image_url = ? WHERE id = ?').run(imageUrl, req.params.id);
-  res.json(mapCamera(db.prepare('SELECT * FROM cameras WHERE id = ?').get(req.params.id)));
+  await run('UPDATE cameras SET image_url = ? WHERE id = ?', [imageUrl, req.params.id]);
+  res.json(mapCamera(await get('SELECT * FROM cameras WHERE id = ?', [req.params.id])));
 });
 
-camerasRouter.put('/:id/stream', (req, res) => {
+camerasRouter.put('/:id/stream', async (req, res) => {
   const { stream_url = '', stream_ip = '', stream_login = '', stream_password = '' } = req.body;
   const value = stream_url.trim() || buildIntelbrasRtsp({ stream_ip, stream_login, stream_password });
 
@@ -88,16 +94,16 @@ camerasRouter.put('/:id/stream', (req, res) => {
     return res.status(400).json({ message: 'Informe uma URL iniciando com http://, https:// ou rtsp://.' });
   }
 
-  db.prepare(`
+  await run(`
     UPDATE cameras
     SET stream_url = ?, stream_ip = ?, stream_login = ?, stream_password = ?
     WHERE id = ?
-  `).run(value, stream_ip.trim(), stream_login.trim(), stream_password, req.params.id);
-  res.json(mapCamera(db.prepare('SELECT * FROM cameras WHERE id = ?').get(req.params.id)));
+  `, [value, stream_ip.trim(), stream_login.trim(), stream_password, req.params.id]);
+  res.json(mapCamera(await get('SELECT * FROM cameras WHERE id = ?', [req.params.id])));
 });
 
-camerasRouter.post('/:id/stream/start', (req, res) => {
-  const camera = db.prepare('SELECT * FROM cameras WHERE id = ?').get(req.params.id);
+camerasRouter.post('/:id/stream/start', async (req, res) => {
+  const camera = await get('SELECT * FROM cameras WHERE id = ?', [req.params.id]);
   if (!camera?.stream_url) return res.status(400).json({ message: 'Configure a URL RTSP da câmera antes de iniciar.' });
 
   try {

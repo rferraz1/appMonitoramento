@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db } from '../db/database.js';
+import { all } from '../db/database.js';
 
 export const analyticsRouter = Router();
 
@@ -9,15 +9,15 @@ function periodFromQuery(query) {
   return { start: `${month}-01`, end: `${month}-31` };
 }
 
-analyticsRouter.get('/', (req, res) => {
+analyticsRouter.get('/', async (req, res) => {
   const { start, end } = periodFromQuery(req.query);
-  const checks = db.prepare(`
+  const checks = await all(`
     SELECT checks.*, vessels.name AS vessel_name, cameras.name AS camera_name
     FROM checks
     JOIN vessels ON vessels.id = checks.vessel_id
     JOIN cameras ON cameras.id = checks.camera_id
     WHERE date BETWEEN ? AND ?
-  `).all(start, end);
+  `, [start, end]);
 
   const total = checks.length;
   const count = (status) => checks.filter((check) => check.status === status).length;
@@ -41,7 +41,7 @@ analyticsRouter.get('/', (req, res) => {
     return { name, disponibilidade: vesselChecks.length ? Math.round((vesselOnline / vesselChecks.length) * 100) : 0 };
   });
 
-  const monthly = db.prepare(`
+  const monthly = (await all(`
     SELECT substr(date, 1, 7) AS month,
       SUM(CASE WHEN status = 'Online' THEN 1 ELSE 0 END) AS online,
       SUM(CASE WHEN status = 'Offline' THEN 1 ELSE 0 END) AS offline,
@@ -50,23 +50,23 @@ analyticsRouter.get('/', (req, res) => {
     GROUP BY substr(date, 1, 7)
     ORDER BY month DESC
     LIMIT 12
-  `).all().reverse();
+  `)).reverse();
 
   const sixMonths = monthly.slice(-6).map((row) => ({
     name: row.month,
-    disponibilidade: row.total ? Math.round((row.online / row.total) * 100) : 0
+    disponibilidade: row.total ? Math.round((Number(row.online || 0) / Number(row.total)) * 100) : 0
   }));
 
-  const annual = db.prepare(`
+  const annual = (await all(`
     SELECT substr(date, 1, 4) AS year,
       SUM(CASE WHEN status = 'Online' THEN 1 ELSE 0 END) AS online,
       COUNT(*) AS total
     FROM checks
     GROUP BY substr(date, 1, 4)
     ORDER BY year
-  `).all().map((row) => ({
+  `)).map((row) => ({
     name: row.year,
-    disponibilidade: row.total ? Math.round((row.online / row.total) * 100) : 0
+    disponibilidade: row.total ? Math.round((Number(row.online || 0) / Number(row.total)) * 100) : 0
   }));
 
   res.json({
@@ -80,7 +80,7 @@ analyticsRouter.get('/', (req, res) => {
     },
     vesselAvailability,
     cameraProblems: group((c) => c.camera_name, (c) => c.status !== 'Online'),
-    onlineOfflineByMonth: monthly.map((row) => ({ name: row.month, Online: row.online || 0, Offline: row.offline || 0 })),
+    onlineOfflineByMonth: monthly.map((row) => ({ name: row.month, Online: Number(row.online || 0), Offline: Number(row.offline || 0) })),
     sixMonths,
     annual
   });
