@@ -167,7 +167,6 @@ export default function Dashboard() {
                     <tr key={camera.id} className="align-top">
                       <td className="px-4 py-4">
                         <p className="font-semibold text-slate-900">{camera.name}</p>
-                        {camera.excel_code && <p className="text-xs font-medium text-slate-500">{camera.excel_code}</p>}
                         <p className="text-xs text-slate-500">{camera.location}</p>
                       </td>
                       {camera.checks.map((check) => (

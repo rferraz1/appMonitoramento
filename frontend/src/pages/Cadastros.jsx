@@ -96,7 +96,7 @@ export default function Cadastros() {
             {cameras.map((camera) => (
               <div className="flex items-center justify-between gap-3 py-3" key={camera.id}>
                 <div>
-                  <p className="font-medium text-slate-900">{camera.excel_code ? `${camera.excel_code} · ` : ''}{camera.name}</p>
+                  <p className="font-medium text-slate-900">{camera.name}</p>
                   <p className="text-xs text-slate-500">{camera.vessel_name} · {camera.location || 'Sem localização'} · {camera.active ? 'Ativa' : 'Futura/Inativa'}</p>
                 </div>
                 <button className="btn-secondary" onClick={() => { setEditingCamera(camera.id); setCameraForm({ vessel_id: camera.vessel_id, name: camera.name, location: camera.location || '', active: camera.active }); }}>
