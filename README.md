@@ -74,8 +74,8 @@ O arquivo `vercel.json` já direciona `/api/*` para o backend Express serverless
 
 ## Acesso inicial
 
-- Usuário: `admin`
-- Senha: `Baru123@Mudar`
+- Usuário: `rsferraz`
+- Senha: `123@Mudar`
 
 ## Fluxo de criação de conta
 
@@ -89,7 +89,7 @@ Um administrador deve entrar no sistema, abrir **Usuários e Acessos** e aprovar
 npm run reset:db
 ```
 
-O reset remove o arquivo SQLite local e recria tabelas, usuário admin, barcos e 13 câmeras iniciais.
+O reset remove o arquivo SQLite local e recria tabelas, usuário administrador, grupos e câmeras iniciais.
 
 ## Integração futura com Excel / OneDrive / SharePoint
 

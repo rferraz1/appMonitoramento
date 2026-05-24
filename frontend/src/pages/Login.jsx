@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 export default function Login() {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: 'admin', password: 'Baru123@Mudar' });
+  const [form, setForm] = useState({ email: 'rsferraz', password: '123@Mudar' });
   const [requestForm, setRequestForm] = useState({ name: '', email: '', password: '' });
   const [mode, setMode] = useState('login');
   const [error, setError] = useState('');

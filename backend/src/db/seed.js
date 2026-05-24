@@ -5,12 +5,22 @@ import { cameraGroups, excelCodeFor } from './cameraCatalog.js';
 export async function seed() {
   await migrate();
 
-  const userExists = await get('SELECT id FROM users WHERE email = ?', ['admin']);
-  if (!userExists) {
+  const defaultAdminLogin = 'rsferraz';
+  const defaultAdminPassword = '123@Mudar';
+  const adminExists = await get('SELECT id FROM users WHERE email = ?', [defaultAdminLogin]);
+  const legacyAdmin = await get('SELECT id FROM users WHERE email = ?', ['admin']);
+
+  if (!adminExists && legacyAdmin) {
+    await run(`
+      UPDATE users
+      SET name = ?, email = ?, password_hash = ?, role = ?
+      WHERE id = ?
+    `, ['Administrador', defaultAdminLogin, bcrypt.hashSync(defaultAdminPassword, 10), 'admin', legacyAdmin.id]);
+  } else if (!adminExists) {
     await run(`
       INSERT INTO users (name, email, password_hash, role)
       VALUES (?, ?, ?, ?)
-    `, ['Administrador', 'admin', bcrypt.hashSync('Baru123@Mudar', 10), 'admin']);
+    `, ['Administrador', defaultAdminLogin, bcrypt.hashSync(defaultAdminPassword, 10), 'admin']);
   }
 
   const vesselCount = await get('SELECT COUNT(*) AS total FROM vessels');
