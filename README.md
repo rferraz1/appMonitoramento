@@ -53,9 +53,14 @@ Variáveis na Vercel:
 DATABASE_URL=postgresql://...
 JWT_SECRET=um-segredo-grande
 NODE_ENV=production
+ADMIN_EMAIL=seu-email-pessoal@exemplo.com
+RESEND_API_KEY=sua-chave-resend
+EMAIL_FROM=Baru Offshore <onboarding@seudominio.com>
 ```
 
 Não defina `VITE_API_URL` na Vercel. O frontend usa `/api` no mesmo domínio.
+
+`ADMIN_EMAIL`, `RESEND_API_KEY` e `EMAIL_FROM` são usados para avisar por e-mail quando alguém solicitar conta. Sem essas variáveis, o pedido continua funcionando e aparece na aba **Usuários e Acessos** para aprovação manual.
 
 Build settings:
 
@@ -71,6 +76,12 @@ O arquivo `vercel.json` já direciona `/api/*` para o backend Express serverless
 
 - Usuário: `admin`
 - Senha: `Baru123@Mudar`
+
+## Fluxo de criação de conta
+
+Na tela de login existe a opção **Criar conta**. O usuário informa nome, e-mail/login e senha. A conta não é liberada automaticamente.
+
+Um administrador deve entrar no sistema, abrir **Usuários e Acessos** e aprovar ou rejeitar a solicitação. Ao aprovar, o sistema cria o usuário como operador usando a senha definida na solicitação.
 
 ## Resetar banco
 
