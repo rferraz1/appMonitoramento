@@ -1,10 +1,15 @@
 import { Router } from 'express';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { all, get, isPostgres, run } from '../db/database.js';
 import { syncChecks, testConnection } from '../services/graphExcelService.js';
 import { workbookTemplate } from '../services/excelTemplate.js';
 import { syncLocalWorkbook } from '../services/localExcelService.js';
 
 export const excelRouter = Router();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const templateWorkbookPath = path.resolve(__dirname, '../../templates/PLANILHAFINAL.xlsx');
 
 async function getSettings() {
   return get('SELECT * FROM excel_settings WHERE id = 1');
@@ -76,4 +81,8 @@ excelRouter.post('/sync-local', async (_req, res) => {
   } catch (error) {
     res.status(500).json({ ok: false, message: error.message });
   }
+});
+
+excelRouter.get('/template', (_req, res) => {
+  res.download(templateWorkbookPath, 'PLANILHAFINAL.xlsx');
 });

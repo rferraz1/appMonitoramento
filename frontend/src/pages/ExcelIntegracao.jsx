@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Plus } from 'lucide-react';
+import { Download, ExternalLink, Plus } from 'lucide-react';
 import { api } from '../api/client.js';
 
 export default function ExcelIntegracao() {
@@ -55,6 +55,23 @@ export default function ExcelIntegracao() {
     window.open(settings.excel_url, '_blank', 'noopener,noreferrer');
   }
 
+  async function downloadTemplate() {
+    try {
+      const response = await api.get('/excel/template', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'PLANILHAFINAL.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setMessage('Modelo PLANILHAFINAL.xlsx baixado do app.');
+    } catch (error) {
+      setMessage(error.response?.data?.message || 'Não foi possível baixar o modelo anexado ao app.');
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -77,10 +94,20 @@ export default function ExcelIntegracao() {
               <ExternalLink size={16} />
               Abrir planilha
             </button>
+            <button className="btn-secondary" onClick={downloadTemplate}>
+              <Download size={16} />
+              Baixar modelo anexado
+            </button>
           </div>
         </div>
         {message && <div className="mb-4 rounded-md border border-brand-100 bg-brand-50 px-3 py-2 text-sm text-brand-700">{message}</div>}
         <div className="space-y-4">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="font-semibold">A planilha do seu Mac não está online automaticamente.</p>
+            <p className="mt-1">
+              O app tem o modelo anexado, mas para abrir a planilha real recebendo os dados em produção, suba esse arquivo no OneDrive/SharePoint e salve o link aqui.
+            </p>
+          </div>
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
             <p className="font-semibold">Modelo configurado: PLANILHAFINAL.xlsx</p>
             <p className="mt-1">

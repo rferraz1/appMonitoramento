@@ -127,7 +127,7 @@ Para apontar para outro arquivo local, defina no `backend/.env`:
 EXCEL_LOCAL_FILE=/caminho/para/PLANILHAFINAL.xlsx
 ```
 
-Na hospedagem Vercel, arquivo local não é persistente nem abre como planilha de trabalho. Para conferir a planilha real pelo botão **Abrir planilha**, salve na aba **Integração Excel** o link do arquivo no OneDrive/SharePoint.
+Na hospedagem Vercel, arquivo local não é persistente nem abre como planilha de trabalho. O modelo `PLANILHAFINAL.xlsx` fica anexado ao app e pode ser baixado pela aba **Integração Excel**, mas para conferir a planilha real pelo botão **Abrir planilha**, salve ali o link do arquivo no OneDrive/SharePoint.
 
 Hoje os botões usam um mock controlado em `backend/src/services/graphExcelService.js`. Para ativar a integração real:
 
