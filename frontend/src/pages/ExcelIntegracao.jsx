@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download, ExternalLink, Plus } from 'lucide-react';
+import { ExternalLink, Plus } from 'lucide-react';
 import { api } from '../api/client.js';
 
 export default function ExcelIntegracao() {
@@ -55,23 +55,6 @@ export default function ExcelIntegracao() {
     window.open(settings.excel_url, '_blank', 'noopener,noreferrer');
   }
 
-  async function downloadLocalWorkbook() {
-    try {
-      const response = await api.get('/excel/local-workbook', { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'PLANILHAFINAL.xlsx');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      setMessage('Planilha baixada.');
-    } catch (error) {
-      setMessage(error.response?.data?.message || 'Não foi possível baixar a planilha.');
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div>
@@ -83,7 +66,7 @@ export default function ExcelIntegracao() {
         <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div>
             <h2 className="font-semibold text-slate-950">Arquivo Excel</h2>
-            <p className="text-sm text-slate-500">Abra a planilha online pelo link salvo ou baixe o modelo local.</p>
+            <p className="text-sm text-slate-500">Abra o arquivo online configurado no OneDrive ou SharePoint para conferir os lançamentos.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button className="btn-primary" onClick={addSpreadsheetLink}>
@@ -92,11 +75,7 @@ export default function ExcelIntegracao() {
             </button>
             <button className="btn-secondary" onClick={openSpreadsheet}>
               <ExternalLink size={16} />
-              Abrir planilha online
-            </button>
-            <button className="btn-secondary" onClick={downloadLocalWorkbook}>
-              <Download size={16} />
-              Baixar planilha local
+              Abrir planilha
             </button>
           </div>
         </div>
@@ -107,6 +86,9 @@ export default function ExcelIntegracao() {
             <p className="mt-1">
               O sistema já está preparado para preencher as abas Janeiro a Dezembro, colunas 10:00, 13:00, 16:00,
               eventos técnicos, comportamento do colaborador, responsável e a aba Ocorrências.
+            </p>
+            <p className="mt-2">
+              Para abrir exatamente a planilha que será conferida no trabalho, cole e salve aqui o link do arquivo no OneDrive/SharePoint.
             </p>
           </div>
           {(showLinkForm || settings.excel_url) && (

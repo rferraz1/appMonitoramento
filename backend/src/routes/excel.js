@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { all, get, isPostgres, run } from '../db/database.js';
 import { syncChecks, testConnection } from '../services/graphExcelService.js';
 import { workbookTemplate } from '../services/excelTemplate.js';
-import { localWorkbookPath, syncLocalWorkbook } from '../services/localExcelService.js';
+import { syncLocalWorkbook } from '../services/localExcelService.js';
 
 export const excelRouter = Router();
 
@@ -76,9 +76,4 @@ excelRouter.post('/sync-local', async (_req, res) => {
   } catch (error) {
     res.status(500).json({ ok: false, message: error.message });
   }
-});
-
-excelRouter.get('/local-workbook', (_req, res) => {
-  const filePath = localWorkbookPath();
-  res.download(filePath, 'PLANILHAFINAL.xlsx');
 });
