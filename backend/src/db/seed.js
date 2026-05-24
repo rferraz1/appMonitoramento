@@ -2,6 +2,9 @@ import bcrypt from 'bcryptjs';
 import { all, get, isPostgres, migrate, run } from './database.js';
 import { cameraGroups, excelCodeFor } from './cameraCatalog.js';
 
+const defaultExcelUrl = 'https://1drv.ms/x/c/4aa17ccbbdf7a811/IQBXjC3gZw_0SaO1u_numKDwAcffGg9zchW9VJXsxBIWy-8?e=QZupbh';
+const defaultWorksheetName = 'Mensal automático: Janeiro a Dezembro';
+
 export async function seed() {
   await migrate();
 
@@ -46,6 +49,6 @@ export async function seed() {
     await run(`
       INSERT INTO excel_settings (id, excel_url, worksheet_name, enabled)
       VALUES (1, ?, ?, ?)
-    `, ['', 'Mensal automático: Janeiro a Dezembro', isPostgres ? false : 0]);
+    `, [defaultExcelUrl, defaultWorksheetName, isPostgres ? false : 0]);
   }
 }

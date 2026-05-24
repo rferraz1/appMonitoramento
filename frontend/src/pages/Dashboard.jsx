@@ -50,6 +50,11 @@ function TrafficStatus({ value, onChange }) {
       {value && value !== 'Online' && value !== 'Offline' && (
         <p className="mt-2 text-center text-xs text-amber-700">Status anterior: {value}</p>
       )}
+      {value && ['Online', 'Offline'].includes(value) && (
+        <p className={`mt-2 text-center text-xs font-semibold ${value === 'Online' ? 'text-emerald-700' : 'text-red-700'}`}>
+          Selecionado: {value}
+        </p>
+      )}
     </div>
   );
 }
@@ -111,6 +116,8 @@ export default function Dashboard() {
       const response = await api.post(`/checks/day/${date}`, { checks: flatChecks.filter((check) => check.status) });
       await load();
       setMessage(response.data.message || 'Salvo com sucesso.');
+    } catch (error) {
+      setMessage(error.response?.data?.message || 'Não foi possível salvar os status.');
     } finally {
       setSaving(false);
     }

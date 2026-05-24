@@ -132,6 +132,13 @@ checksRouter.post('/day/:date', async (req, res) => {
     }
   }
 
+  if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+    return res.json({
+      message: 'Salvo com sucesso no app. A planilha online será atualizada quando a integração Microsoft Graph estiver ativa.',
+      localSync: { ok: false, message: 'Sincronização local desativada em produção.' }
+    });
+  }
+
   try {
     const localSync = await syncLocalWorkbook({
       checks: await checksForDate(req.params.date),

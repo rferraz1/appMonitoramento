@@ -107,6 +107,9 @@ export default function ExcelIntegracao() {
             <p className="mt-1">
               O app tem o modelo anexado, mas para abrir a planilha real recebendo os dados em produção, suba esse arquivo no OneDrive/SharePoint e salve o link aqui.
             </p>
+            <p className="mt-2">
+              Este link já abre a planilha para conferência. A alteração automática das células do OneDrive depende da ativação do Microsoft Graph.
+            </p>
           </div>
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
             <p className="font-semibold">Modelo configurado: PLANILHAFINAL.xlsx</p>
@@ -144,8 +147,8 @@ export default function ExcelIntegracao() {
         <div className="mt-6 flex flex-wrap gap-3">
           <button className="btn-primary" onClick={save}>Salvar configuração</button>
           <button className="btn-secondary" onClick={test}>Testar conexão</button>
-          <button className="btn-secondary" onClick={sync}>Sincronizar dados</button>
-          <button className="btn-secondary" onClick={syncLocal}>Sincronizar planilha local</button>
+          <button className="btn-secondary" onClick={sync}>Preparar sincronização Graph</button>
+          {import.meta.env.DEV && <button className="btn-secondary" onClick={syncLocal}>Sincronizar planilha local</button>}
         </div>
       </section>
 
