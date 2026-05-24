@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const defaultLocalWorkbook = '/Users/rodolfoferraz/Downloads/PLANILHAFINAL.xlsx';
 const fallbackWorkbook = path.resolve(__dirname, '../../templates/PLANILHAFINAL.xlsx');
 
-function localWorkbookPath() {
+export function localWorkbookPath() {
   const configured = process.env.EXCEL_LOCAL_FILE || defaultLocalWorkbook;
   if (fs.existsSync(configured)) return configured;
   return fallbackWorkbook;

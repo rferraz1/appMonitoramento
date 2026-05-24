@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Plus } from 'lucide-react';
+import { Download, ExternalLink, Plus } from 'lucide-react';
 import { api } from '../api/client.js';
 
 export default function ExcelIntegracao() {
@@ -48,7 +48,28 @@ export default function ExcelIntegracao() {
   }
 
   function openSpreadsheet() {
-    if (settings.excel_url) window.open(settings.excel_url, '_blank', 'noopener,noreferrer');
+    if (!settings.excel_url) {
+      setMessage('Cole e salve um link do OneDrive/SharePoint para abrir a planilha online.');
+      return;
+    }
+    window.open(settings.excel_url, '_blank', 'noopener,noreferrer');
+  }
+
+  async function downloadLocalWorkbook() {
+    try {
+      const response = await api.get('/excel/local-workbook', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'PLANILHAFINAL.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setMessage('Planilha baixada.');
+    } catch (error) {
+      setMessage(error.response?.data?.message || 'Não foi possível baixar a planilha.');
+    }
   }
 
   return (
@@ -62,16 +83,20 @@ export default function ExcelIntegracao() {
         <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div>
             <h2 className="font-semibold text-slate-950">Arquivo Excel</h2>
-            <p className="text-sm text-slate-500">Adicione aqui o link do arquivo no OneDrive ou SharePoint.</p>
+            <p className="text-sm text-slate-500">Abra a planilha online pelo link salvo ou baixe o modelo local.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button className="btn-primary" onClick={addSpreadsheetLink}>
               <Plus size={16} />
               Link da planilha
             </button>
-            <button className="btn-secondary" onClick={openSpreadsheet} disabled={!settings.excel_url}>
+            <button className="btn-secondary" onClick={openSpreadsheet}>
               <ExternalLink size={16} />
-              Abrir
+              Abrir planilha online
+            </button>
+            <button className="btn-secondary" onClick={downloadLocalWorkbook}>
+              <Download size={16} />
+              Baixar planilha local
             </button>
           </div>
         </div>
