@@ -130,6 +130,8 @@ export async function migrate() {
         id INTEGER PRIMARY KEY CHECK (id = 1),
         excel_url TEXT,
         worksheet_name TEXT,
+        google_sheet_url TEXT,
+        google_webhook_url TEXT,
         enabled BOOLEAN NOT NULL DEFAULT false,
         last_sync_at TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -146,6 +148,9 @@ export async function migrate() {
         reviewed_at TIMESTAMPTZ,
         reviewed_by INTEGER REFERENCES users(id)
       );
+
+      ALTER TABLE excel_settings ADD COLUMN IF NOT EXISTS google_sheet_url TEXT;
+      ALTER TABLE excel_settings ADD COLUMN IF NOT EXISTS google_webhook_url TEXT;
     `);
     return;
   }
@@ -216,6 +221,8 @@ export async function migrate() {
       id INTEGER PRIMARY KEY CHECK (id = 1),
       excel_url TEXT,
       worksheet_name TEXT,
+      google_sheet_url TEXT,
+      google_webhook_url TEXT,
       enabled INTEGER NOT NULL DEFAULT 0,
       last_sync_at TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -238,6 +245,14 @@ export async function migrate() {
   for (const column of ['excel_code', 'image_url', 'stream_url', 'stream_ip', 'stream_login', 'stream_password']) {
     try {
       sqliteDb.prepare(`ALTER TABLE cameras ADD COLUMN ${column} TEXT`).run();
+    } catch (error) {
+      if (!String(error.message).includes('duplicate column name')) throw error;
+    }
+  }
+
+  for (const column of ['google_sheet_url', 'google_webhook_url']) {
+    try {
+      sqliteDb.prepare(`ALTER TABLE excel_settings ADD COLUMN ${column} TEXT`).run();
     } catch (error) {
       if (!String(error.message).includes('duplicate column name')) throw error;
     }

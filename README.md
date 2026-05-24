@@ -10,7 +10,8 @@ Sistema web para substituir a planilha de checagem diária de câmeras de barcos
 - Autenticação: JWT
 - Gráficos: Recharts
 - Exportação: CSV e Excel
-- Preparado para Microsoft Graph API / Excel no OneDrive ou SharePoint
+- Integração de status com Google Sheets via Apps Script
+- Estrutura mantida para futura integração Microsoft Graph / Excel
 
 ## Instalação
 
@@ -91,16 +92,25 @@ npm run reset:db
 
 O reset remove o arquivo SQLite local e recria tabelas, usuário administrador, grupos e câmeras iniciais.
 
-## Integração futura com Excel / OneDrive / SharePoint
+## Integração Google Sheets
 
-A aba **Integração Excel** já permite salvar:
+A aba **Integração Planilha** permite salvar:
 
-- Link do arquivo Excel no OneDrive/SharePoint
-- Nome da aba da planilha
-- Ativar/desativar integração
+- Link da Planilha Google
+- URL publicada do Apps Script
+- Ativar/desativar atualização automática
 - Testar conexão
-- Sincronizar dados
-- Sincronizar planilha local
+- Enviar registros já salvos
+
+Quando a integração está ativa, o botão **Salvar** do dashboard envia os registros para a aba `Base_App` da Planilha Google. As colunas esperadas são:
+
+```txt
+Data	ID	Nome da Camera	Grupo	Horario	Status	Observacao	Comportamento	Responsavel	AtualizadoEm
+```
+
+O Apps Script deve estar implantado como aplicativo da web executando como o proprietário da planilha e acessível a qualquer pessoa com a URL.
+
+## Modelo Excel e integração futura Microsoft
 
 O sistema já está mapeado para a planilha `PLANILHAFINAL.xlsx`, copiada em `backend/templates/`.
 
@@ -127,7 +137,7 @@ Para apontar para outro arquivo local, defina no `backend/.env`:
 EXCEL_LOCAL_FILE=/caminho/para/PLANILHAFINAL.xlsx
 ```
 
-Na hospedagem Vercel, arquivo local não é persistente nem abre como planilha de trabalho. O modelo `PLANILHAFINAL.xlsx` fica anexado ao app e pode ser baixado pela aba **Integração Excel**, mas para conferir a planilha real pelo botão **Abrir planilha**, salve ali o link do arquivo no OneDrive/SharePoint.
+Na hospedagem Vercel, arquivo local não é persistente nem abre como planilha de trabalho. O fluxo ativo de atualização online usa Google Sheets.
 
 Hoje os botões usam um mock controlado em `backend/src/services/graphExcelService.js`. Para ativar a integração real:
 

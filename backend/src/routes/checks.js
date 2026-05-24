@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { all, get, isPostgres, run } from '../db/database.js';
+import { syncGoogleSheets } from '../services/googleSheetsService.js';
 import { syncLocalWorkbook } from '../services/localExcelService.js';
 
 export const checksRouter = Router();
@@ -132,16 +133,25 @@ checksRouter.post('/day/:date', async (req, res) => {
     }
   }
 
+  const savedChecks = await checksForDate(req.params.date);
+  const settings = await get('SELECT enabled, google_webhook_url FROM excel_settings WHERE id = 1');
+  const googleSync = await syncGoogleSheets(settings, savedChecks);
+
+  if (googleSync.ok) {
+    await run('UPDATE excel_settings SET last_sync_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1', [googleSync.syncedAt]);
+    return res.json({ message: 'Salvo com sucesso. Planilha Google atualizada.', googleSync });
+  }
+
   if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
     return res.json({
-      message: 'Salvo com sucesso no app. A planilha online será atualizada quando a integração Microsoft Graph estiver ativa.',
-      localSync: { ok: false, message: 'Sincronização local desativada em produção.' }
+      message: `Salvo no app, mas a Planilha Google não foi atualizada: ${googleSync.message}`,
+      googleSync
     });
   }
 
   try {
     const localSync = await syncLocalWorkbook({
-      checks: await checksForDate(req.params.date),
+      checks: savedChecks,
       cameras: await camerasForSync()
     });
     res.json({ message: 'Salvo com sucesso. Planilha local atualizada.', localSync });

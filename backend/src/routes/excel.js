@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { all, get, isPostgres, run } from '../db/database.js';
 import { syncChecks, testConnection } from '../services/graphExcelService.js';
+import { syncGoogleSheets, testGoogleSheetsWebhook } from '../services/googleSheetsService.js';
 import { workbookTemplate } from '../services/excelTemplate.js';
 import { syncLocalWorkbook } from '../services/localExcelService.js';
 
@@ -49,25 +50,33 @@ excelRouter.get('/settings', async (_req, res) => {
 });
 
 excelRouter.put('/settings', async (req, res) => {
-  const { excel_url = '', worksheet_name = '', enabled = false } = req.body;
+  const { excel_url = '', worksheet_name = '', google_sheet_url = '', google_webhook_url = '', enabled = false } = req.body;
   await run(`
-    INSERT INTO excel_settings (id, excel_url, worksheet_name, enabled, updated_at)
-    VALUES (1, ?, ?, ?, CURRENT_TIMESTAMP)
+    INSERT INTO excel_settings (id, excel_url, worksheet_name, google_sheet_url, google_webhook_url, enabled, updated_at)
+    VALUES (1, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(id) DO UPDATE SET
       excel_url = EXCLUDED.excel_url,
       worksheet_name = EXCLUDED.worksheet_name,
+      google_sheet_url = EXCLUDED.google_sheet_url,
+      google_webhook_url = EXCLUDED.google_webhook_url,
       enabled = EXCLUDED.enabled,
       updated_at = CURRENT_TIMESTAMP
-  `, [excel_url, worksheet_name, isPostgres ? Boolean(enabled) : enabled ? 1 : 0]);
+  `, [excel_url, worksheet_name, google_sheet_url, google_webhook_url, isPostgres ? Boolean(enabled) : enabled ? 1 : 0]);
   res.json(mapSettings(await getSettings()));
 });
 
 excelRouter.post('/test', async (_req, res) => {
-  res.json(await testConnection(await getSettings()));
+  const settings = await getSettings();
+  if (settings.google_webhook_url) return res.json(await testGoogleSheetsWebhook(settings));
+  res.json(await testConnection(settings));
 });
 
 excelRouter.post('/sync', async (_req, res) => {
-  const result = await syncChecks(await getSettings(), await checksForSync(), await camerasForSync());
+  const settings = await getSettings();
+  const checks = await checksForSync();
+  const result = settings.google_webhook_url
+    ? await syncGoogleSheets(settings, checks)
+    : await syncChecks(settings, checks, await camerasForSync());
   if (result.ok) {
     await run('UPDATE excel_settings SET last_sync_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1', [result.syncedAt]);
   }
