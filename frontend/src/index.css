@@ -29,3 +29,50 @@ body {
 .panel {
   @apply rounded-lg border border-slate-200 bg-white shadow-sm;
 }
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+
+  body {
+    background: white;
+    color: #172033;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .print-hidden {
+    display: none !important;
+  }
+
+  .app-content {
+    min-height: auto;
+    padding-left: 0 !important;
+  }
+
+  .app-main {
+    padding: 0 !important;
+  }
+
+  .print-report-header {
+    display: block !important;
+    margin-bottom: 18px;
+  }
+
+  .analytics-report > div:nth-child(2) h1,
+  .analytics-report > div:nth-child(2) p {
+    display: none;
+  }
+
+  .analytics-report {
+    gap: 14px;
+  }
+
+  .analytics-chart {
+    break-inside: avoid;
+    box-shadow: none;
+    height: 240px;
+  }
+}

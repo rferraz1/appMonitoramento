@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { FileDown } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api } from '../api/client.js';
 import { StatCard } from '../components/StatCard.jsx';
@@ -17,20 +18,37 @@ export default function Analitico() {
     load();
   }, []);
 
-  const chartBox = 'h-72 rounded-lg border border-slate-200 bg-white p-4 shadow-sm';
+  function exportExecutivePdf() {
+    const previousTitle = document.title;
+    document.title = `Baru-Offshore-Analitico-${filters.start && filters.end ? `${filters.start}-${filters.end}` : filters.month}`;
+    window.print();
+    document.title = previousTitle;
+  }
+
+  const periodLabel = filters.start && filters.end ? `${filters.start} a ${filters.end}` : filters.month;
+  const chartBox = 'analytics-chart h-72 rounded-lg border border-slate-200 bg-white p-4 shadow-sm';
 
   return (
-    <div className="space-y-6">
+    <div className="analytics-report space-y-6">
+      <div className="print-report-header hidden">
+        <p className="text-xs font-semibold uppercase text-brand-700">Baru Offshore</p>
+        <h1 className="mt-1 text-2xl font-bold text-slate-950">Relatório Executivo de Disponibilidade</h1>
+        <p className="mt-1 text-sm text-slate-500">Período: {periodLabel}</p>
+      </div>
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <h1 className="text-2xl font-bold text-slate-950">Analítico</h1>
           <p className="text-sm text-slate-500">Indicadores operacionais por mês, período e histórico.</p>
         </div>
-        <div className="grid gap-2 sm:grid-cols-[160px_160px_160px_auto]">
+        <div className="print-hidden grid gap-2 sm:grid-cols-[160px_160px_160px_auto_auto]">
           <input type="month" className="input" value={filters.month} onChange={(e) => setFilters({ ...filters, month: e.target.value, start: '', end: '' })} />
           <input type="date" className="input" value={filters.start} onChange={(e) => setFilters({ ...filters, start: e.target.value })} />
           <input type="date" className="input" value={filters.end} onChange={(e) => setFilters({ ...filters, end: e.target.value })} />
           <button className="btn-primary" onClick={load}>Filtrar</button>
+          <button className="btn-secondary" onClick={exportExecutivePdf}>
+            <FileDown size={16} />
+            PDF executivo
+          </button>
         </div>
       </div>
 

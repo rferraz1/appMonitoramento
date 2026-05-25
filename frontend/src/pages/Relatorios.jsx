@@ -28,7 +28,7 @@ export default function Relatorios() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-950">Relatórios</h1>
-        <p className="text-sm text-slate-500">Exporte registros com observações e comportamentos registrados.</p>
+        <p className="text-sm text-slate-500">Exporte registros e um resumo executivo em Excel, incluindo observações e comportamentos.</p>
       </div>
 
       <section className="panel max-w-3xl p-5">
@@ -54,6 +54,9 @@ export default function Relatorios() {
           </label>
         </div>
         <button className="btn-primary mt-6" onClick={exportReport}>Exportar relatório</button>
+      </section>
+      <section className="panel max-w-3xl border-brand-100 bg-brand-50 p-5 text-sm text-brand-800">
+        Os gráficos visuais para reunião podem ser exportados na aba <strong>Analítico</strong>, pelo botão <strong>PDF executivo</strong>.
       </section>
     </div>
   );
