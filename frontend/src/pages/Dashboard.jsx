@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Save } from 'lucide-react';
+import { Copy, Save, SignalHigh } from 'lucide-react';
 import { api } from '../api/client.js';
 
 const today = new Date().toISOString().slice(0, 10);
@@ -66,6 +66,7 @@ export default function Dashboard() {
   const [selectedVesselId, setSelectedVesselId] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [messageTone, setMessageTone] = useState('success');
 
   async function load() {
     const response = await api.get(`/checks/day/${date}`, {
@@ -109,14 +110,71 @@ export default function Dashboard() {
     }));
   }
 
+  function fillRemainingOnline(slot) {
+    const changed = flatChecks.filter((check) => check.time_slot === slot && !check.status).length;
+
+    setData((current) => ({
+      ...current,
+      vessels: current.vessels.map((vessel) => ({
+        ...vessel,
+        cameras: vessel.cameras.map((camera) => ({
+          ...camera,
+          checks: camera.checks.map((check) => {
+            if (check.time_slot !== slot || check.status) return check;
+            return { ...check, status: 'Online' };
+          })
+        }))
+      }))
+    }));
+
+    setMessageTone('pending');
+    setMessage(changed
+      ? `${changed} câmeras restantes marcadas Online em ${slot}. Clique em Salvar.`
+      : `Nenhuma câmera pendente em ${slot}.`);
+  }
+
+  function repeatStatuses(sourceSlot, targetSlot) {
+    const changed = (data?.vessels || []).reduce((total, vessel) => total + vessel.cameras.reduce((cameraTotal, camera) => {
+      const sourceStatus = camera.checks.find((check) => check.time_slot === sourceSlot)?.status;
+      const targetStatus = camera.checks.find((check) => check.time_slot === targetSlot)?.status;
+      return cameraTotal + (sourceStatus && sourceStatus !== targetStatus ? 1 : 0);
+    }, 0), 0);
+
+    setData((current) => ({
+      ...current,
+      vessels: current.vessels.map((vessel) => ({
+        ...vessel,
+        cameras: vessel.cameras.map((camera) => {
+          const sourceStatus = camera.checks.find((check) => check.time_slot === sourceSlot)?.status;
+          if (!sourceStatus) return camera;
+
+          return {
+            ...camera,
+            checks: camera.checks.map((check) => {
+              if (check.time_slot !== targetSlot) return check;
+              return { ...check, status: sourceStatus };
+            })
+          };
+        })
+      }))
+    }));
+
+    setMessageTone('pending');
+    setMessage(changed
+      ? `${changed} status copiados de ${sourceSlot} para ${targetSlot}. Clique em Salvar.`
+      : `Não há alterações para copiar de ${sourceSlot} para ${targetSlot}.`);
+  }
+
   async function save() {
     setSaving(true);
     setMessage('');
     try {
       const response = await api.post(`/checks/day/${date}`, { checks: flatChecks.filter((check) => check.status) });
       await load();
+      setMessageTone('success');
       setMessage(response.data.message || 'Salvo com sucesso.');
     } catch (error) {
+      setMessageTone('error');
       setMessage(error.response?.data?.message || 'Não foi possível salvar os status.');
     } finally {
       setSaving(false);
@@ -151,7 +209,51 @@ export default function Dashboard() {
       <div className={`rounded-lg border px-4 py-3 text-sm ${completed === expected ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
         {completed === expected ? 'Todas as câmeras exibidas foram checadas nos 3 horários.' : `Pendências no grupo exibido: ${expected - completed} de ${expected} verificações.`}
       </div>
-      {message && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div>}
+      {message && (
+        <div className={`rounded-lg border px-4 py-3 text-sm ${
+          messageTone === 'success'
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+            : messageTone === 'error'
+              ? 'border-red-200 bg-red-50 text-red-800'
+              : 'border-amber-200 bg-amber-50 text-amber-800'
+        }`}>
+          {message}
+        </div>
+      )}
+
+      <section className="panel p-4">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <h2 className="font-semibold text-slate-950">Ações rápidas</h2>
+            <p className="text-sm text-slate-500">
+              Aplicadas às câmeras do grupo exibido. Selecione Todos os grupos para operar as 60 câmeras.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {data?.timeSlots.map((slot) => (
+              <button className="btn-secondary text-emerald-700" onClick={() => fillRemainingOnline(slot)} key={`online-${slot}`}>
+                <SignalHigh size={16} />
+                {slot}: restantes online
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+          <span className="mr-1 text-sm font-medium text-slate-600">Repetir status:</span>
+          <button className="btn-secondary" onClick={() => repeatStatuses('10:00', '13:00')}>
+            <Copy size={16} />
+            10:00 para 13:00
+          </button>
+          <button className="btn-secondary" onClick={() => repeatStatuses('10:00', '16:00')}>
+            <Copy size={16} />
+            10:00 para 16:00
+          </button>
+          <button className="btn-secondary" onClick={() => repeatStatuses('13:00', '16:00')}>
+            <Copy size={16} />
+            13:00 para 16:00
+          </button>
+        </div>
+      </section>
 
       <div className="space-y-5">
         {data?.vessels.map((vessel) => (
