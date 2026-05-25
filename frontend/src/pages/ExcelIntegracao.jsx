@@ -56,12 +56,11 @@ export default function ExcelIntegracao() {
   }
 
   function openSpreadsheet() {
-    const sheetUrl = settings.google_sheet_url || settings.excel_url;
-    if (!sheetUrl) {
-      setMessage('Cole e salve o link da sua Planilha Google para abri-la.');
+    if (!settings.google_sheet_url) {
+      setMessage('Cole e salve o link da Planilha Google onde está a aba Base_App.');
       return;
     }
-    window.open(sheetUrl, '_blank', 'noopener,noreferrer');
+    window.open(settings.google_sheet_url, '_blank', 'noopener,noreferrer');
   }
 
   return (
