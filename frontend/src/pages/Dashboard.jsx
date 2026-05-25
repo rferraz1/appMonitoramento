@@ -222,36 +222,37 @@ export default function Dashboard() {
       )}
 
       <section className="panel p-4">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <h2 className="font-semibold text-slate-950">Ações rápidas</h2>
-            <p className="text-sm text-slate-500">
-              Aplicadas às câmeras do grupo exibido. Selecione Todos os grupos para operar as 60 câmeras.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-1 border-b border-slate-100 pb-3 sm:flex-row sm:items-baseline sm:gap-3">
+          <h2 className="font-semibold text-slate-950">Ações rápidas</h2>
+          <p className="text-sm text-slate-500">Use Todos os grupos para operar as 60 câmeras.</p>
+        </div>
+        <div className="mt-3 grid gap-3 xl:grid-cols-[112px_1fr] xl:items-center">
+          <span className="text-sm font-medium text-slate-600">Restantes online</span>
+          <div className="grid gap-2 sm:grid-cols-3">
             {data?.timeSlots.map((slot) => (
-              <button className="btn-secondary text-emerald-700" onClick={() => fillRemainingOnline(slot)} key={`online-${slot}`}>
+              <button className="btn-secondary h-10 border-emerald-200 px-3 text-emerald-700 hover:bg-emerald-50" onClick={() => fillRemainingOnline(slot)} key={`online-${slot}`}>
                 <SignalHigh size={16} />
-                {slot}: restantes online
+                {slot}
               </button>
             ))}
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
-          <span className="mr-1 text-sm font-medium text-slate-600">Repetir status:</span>
-          <button className="btn-secondary" onClick={() => repeatStatuses('10:00', '13:00')}>
-            <Copy size={16} />
-            10:00 para 13:00
-          </button>
-          <button className="btn-secondary" onClick={() => repeatStatuses('10:00', '16:00')}>
-            <Copy size={16} />
-            10:00 para 16:00
-          </button>
-          <button className="btn-secondary" onClick={() => repeatStatuses('13:00', '16:00')}>
-            <Copy size={16} />
-            13:00 para 16:00
-          </button>
+        <div className="mt-3 grid gap-3 xl:grid-cols-[112px_1fr] xl:items-center">
+          <span className="text-sm font-medium text-slate-600">Repetir status</span>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <button className="btn-secondary h-10 px-3" onClick={() => repeatStatuses('10:00', '13:00')}>
+              <Copy size={16} />
+              10:00 para 13:00
+            </button>
+            <button className="btn-secondary h-10 px-3" onClick={() => repeatStatuses('10:00', '16:00')}>
+              <Copy size={16} />
+              10:00 para 16:00
+            </button>
+            <button className="btn-secondary h-10 px-3" onClick={() => repeatStatuses('13:00', '16:00')}>
+              <Copy size={16} />
+              13:00 para 16:00
+            </button>
+          </div>
         </div>
       </section>
 
