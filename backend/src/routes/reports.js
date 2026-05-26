@@ -64,7 +64,7 @@ reportsRouter.get('/', async (req, res) => {
     workbook.creator = 'Baru Offshore';
 
     const summary = summaryFor(rows, start, end);
-    const overview = workbook.addWorksheet('Resumo Executivo', { views: [{ showGridLines: false }] });
+    const overview = workbook.addWorksheet('Resumo Analítico', { views: [{ showGridLines: false }] });
     overview.mergeCells('A1:F1');
     overview.getCell('A1').value = 'BARU OFFSHORE - MONITORAMENTO DE CAMERAS';
     overview.getCell('A1').font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 16 };
@@ -72,7 +72,7 @@ reportsRouter.get('/', async (req, res) => {
     overview.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
     overview.getRow(1).height = 34;
     overview.mergeCells('A2:F2');
-    overview.getCell('A2').value = `Relatorio Executivo | Periodo: ${summary.periodo}`;
+    overview.getCell('A2').value = `Relatorio Analitico | Periodo: ${summary.periodo}`;
     overview.getCell('A2').font = { italic: true, color: { argb: 'FF526276' } };
 
     const metrics = [

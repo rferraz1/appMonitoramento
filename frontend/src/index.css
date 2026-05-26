@@ -70,16 +70,28 @@ body {
     gap: 14px;
   }
 
-  .analytics-cards,
+  .analytics-cards {
+    display: grid !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
   .stat-card {
     break-inside: avoid;
     page-break-inside: avoid;
+    padding: 12px;
+  }
+
+  .analytics-charts {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
   }
 
   .analytics-chart {
     break-inside: avoid;
     page-break-inside: avoid;
     box-shadow: none;
-    height: 240px;
+    height: 225px;
   }
 }

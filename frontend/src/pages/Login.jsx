@@ -64,7 +64,7 @@ export default function Login() {
         <div className="relative max-w-xl">
           <h1 className="text-4xl font-semibold leading-tight">Operação centralizada para checagem de câmeras embarcadas.</h1>
           <p className="mt-5 text-slate-300">
-            Registre status por data, horário, barco e câmera com rastreabilidade de edição e relatórios executivos.
+            Registre status por data, horário, barco e câmera com rastreabilidade de edição e relatórios analíticos.
           </p>
         </div>
         <p className="relative text-sm text-slate-300">10:00 | 13:00 | 16:00</p>

@@ -18,7 +18,7 @@ export default function Analitico() {
     load();
   }, []);
 
-  function exportExecutivePdf() {
+  function exportAnalyticalPdf() {
     const previousTitle = document.title;
     document.title = `Baru-Offshore-Analitico-${filters.start && filters.end ? `${filters.start}-${filters.end}` : filters.month}`;
     window.print();
@@ -32,7 +32,7 @@ export default function Analitico() {
     <div className="analytics-report space-y-6">
       <div className="print-report-header hidden">
         <p className="text-xs font-semibold uppercase text-brand-700">Baru Offshore</p>
-        <h1 className="mt-1 text-2xl font-bold text-slate-950">Relatório Executivo de Disponibilidade</h1>
+        <h1 className="mt-1 text-2xl font-bold text-slate-950">Relatório Analítico</h1>
         <p className="mt-1 text-sm text-slate-500">Período: {periodLabel}</p>
       </div>
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -45,9 +45,9 @@ export default function Analitico() {
           <input type="date" className="input" value={filters.start} onChange={(e) => setFilters({ ...filters, start: e.target.value })} />
           <input type="date" className="input" value={filters.end} onChange={(e) => setFilters({ ...filters, end: e.target.value })} />
           <button className="btn-primary" onClick={load}>Filtrar</button>
-          <button className="btn-secondary" onClick={exportExecutivePdf}>
+          <button className="btn-secondary" onClick={exportAnalyticalPdf}>
             <FileDown size={16} />
-            PDF executivo
+            PDF analítico
           </button>
         </div>
       </div>
@@ -61,7 +61,7 @@ export default function Analitico() {
         <StatCard label="Disponibilidade" value={`${data?.cards.availability || 0}%`} tone="green" />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-2">
+      <div className="analytics-charts grid gap-5 xl:grid-cols-2">
         <div className={chartBox}>
           <h2 className="mb-3 font-semibold">Disponibilidade por barco</h2>
           <ResponsiveContainer width="100%" height="85%">
