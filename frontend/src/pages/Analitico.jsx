@@ -86,7 +86,7 @@ export default function Analitico() {
             <LineChart data={data?.sixMonths || []}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip /><Line type="monotone" dataKey="disponibilidade" stroke="#1f7ab8" strokeWidth={2} /></LineChart>
           </ResponsiveContainer>
         </div>
-        <div className={`${chartBox} xl:col-span-2`}>
+        <div className={`${chartBox} analytics-chart-annual xl:col-span-2`}>
           <h2 className="mb-3 font-semibold">Visão anual</h2>
           <ResponsiveContainer width="100%" height="85%">
             <LineChart data={data?.annual || []}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip /><Line type="monotone" dataKey="disponibilidade" stroke="#0f766e" strokeWidth={2} /></LineChart>

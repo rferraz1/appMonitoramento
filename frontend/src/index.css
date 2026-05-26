@@ -94,4 +94,9 @@ body {
     box-shadow: none;
     height: 225px;
   }
+
+  .analytics-chart-annual {
+    grid-column: 1 / -1 !important;
+    height: 480px;
+  }
 }
