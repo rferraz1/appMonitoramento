@@ -3,6 +3,7 @@ import { Copy, Save, SignalHigh } from 'lucide-react';
 import { api } from '../api/client.js';
 
 const today = new Date().toISOString().slice(0, 10);
+const checkKey = (check) => `${check.camera_id}:${check.time_slot}`;
 
 function TrafficStatus({ value, onChange }) {
   const lights = [
@@ -67,12 +68,14 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [messageTone, setMessageTone] = useState('success');
+  const [changedKeys, setChangedKeys] = useState(new Set());
 
   async function load() {
     const response = await api.get(`/checks/day/${date}`, {
       params: selectedVesselId ? { vessel_id: selectedVesselId } : {}
     });
     setData(response.data);
+    setChangedKeys(new Set());
   }
 
   async function loadGroups() {
@@ -94,6 +97,7 @@ export default function Dashboard() {
   }, [data]);
 
   function updateCheck(cameraId, slot, field, value) {
+    setChangedKeys((current) => new Set(current).add(`${cameraId}:${slot}`));
     setData((current) => ({
       ...current,
       vessels: current.vessels.map((vessel) => ({
@@ -111,7 +115,14 @@ export default function Dashboard() {
   }
 
   function fillRemainingOnline(slot) {
-    const changed = flatChecks.filter((check) => check.time_slot === slot && !check.status).length;
+    const checksToChange = flatChecks.filter((check) => check.time_slot === slot && !check.status);
+    const changed = checksToChange.length;
+
+    setChangedKeys((current) => {
+      const next = new Set(current);
+      checksToChange.forEach((check) => next.add(checkKey(check)));
+      return next;
+    });
 
     setData((current) => ({
       ...current,
@@ -134,11 +145,18 @@ export default function Dashboard() {
   }
 
   function repeatStatuses(sourceSlot, targetSlot) {
-    const changed = (data?.vessels || []).reduce((total, vessel) => total + vessel.cameras.reduce((cameraTotal, camera) => {
+    const checksToChange = (data?.vessels || []).flatMap((vessel) => vessel.cameras.flatMap((camera) => {
       const sourceStatus = camera.checks.find((check) => check.time_slot === sourceSlot)?.status;
-      const targetStatus = camera.checks.find((check) => check.time_slot === targetSlot)?.status;
-      return cameraTotal + (sourceStatus && sourceStatus !== targetStatus ? 1 : 0);
-    }, 0), 0);
+      const targetCheck = camera.checks.find((check) => check.time_slot === targetSlot);
+      return sourceStatus && sourceStatus !== targetCheck?.status ? [targetCheck] : [];
+    }));
+    const changed = checksToChange.length;
+
+    setChangedKeys((current) => {
+      const next = new Set(current);
+      checksToChange.forEach((check) => next.add(checkKey(check)));
+      return next;
+    });
 
     setData((current) => ({
       ...current,
@@ -166,10 +184,17 @@ export default function Dashboard() {
   }
 
   async function save() {
+    const changedChecks = flatChecks.filter((check) => changedKeys.has(checkKey(check)) && check.status);
+    if (!changedChecks.length) {
+      setMessageTone('pending');
+      setMessage('Não há alterações para salvar.');
+      return;
+    }
+
     setSaving(true);
     setMessage('');
     try {
-      const response = await api.post(`/checks/day/${date}`, { checks: flatChecks.filter((check) => check.status) });
+      const response = await api.post(`/checks/day/${date}`, { checks: changedChecks });
       await load();
       setMessageTone('success');
       setMessage(response.data.message || 'Salvo com sucesso.');

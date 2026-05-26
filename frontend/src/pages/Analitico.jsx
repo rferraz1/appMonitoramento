@@ -52,7 +52,7 @@ export default function Analitico() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+      <div className="analytics-cards grid gap-4 md:grid-cols-3 xl:grid-cols-6">
         <StatCard label="Total" value={data?.cards.total || 0} />
         <StatCard label="Online" value={data?.cards.online || 0} tone="green" />
         <StatCard label="Offline" value={data?.cards.offline || 0} tone="red" />

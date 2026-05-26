@@ -98,17 +98,18 @@ checksRouter.post('/day/:date', async (req, res) => {
   const invalid = checks.find((check) => !allowed.has(check.status));
   if (invalid) return res.status(400).json({ message: 'Todos os registros salvos precisam ter status válido.' });
 
-  for (const check of checks.filter((item) => item.status)) {
-    await run(`
-      INSERT INTO checks (date, time_slot, vessel_id, camera_id, status, observation, behavior_note, user_id, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-      ON CONFLICT(date, time_slot, camera_id) DO UPDATE SET
-        status = EXCLUDED.status,
-        observation = EXCLUDED.observation,
-        behavior_note = EXCLUDED.behavior_note,
-        user_id = EXCLUDED.user_id,
-        updated_at = CURRENT_TIMESTAMP
-    `, [
+  const submittedChecks = [...new Map(
+    checks.filter((item) => item.status).map((check) => [`${check.camera_id}:${check.time_slot}`, check])
+  ).values()];
+
+  if (!submittedChecks.length) {
+    return res.json({ message: 'Não há alterações para salvar.' });
+  }
+
+  for (let index = 0; index < submittedChecks.length; index += 100) {
+    const batch = submittedChecks.slice(index, index + 100);
+    const values = batch.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)').join(', ');
+    const params = batch.flatMap((check) => [
       req.params.date,
       check.time_slot,
       check.vessel_id,
@@ -119,23 +120,45 @@ checksRouter.post('/day/:date', async (req, res) => {
       req.user.id
     ]);
 
-    const saved = await get('SELECT id FROM checks WHERE date = ? AND time_slot = ? AND camera_id = ?', [
-      req.params.date,
-      check.time_slot,
-      check.camera_id
-    ]);
-
-    if ((check.observation || check.behavior_note) && saved) {
-      await run(`
-        INSERT INTO observations (check_id, note, behavior_note, user_id)
-        VALUES (?, ?, ?, ?)
-      `, [saved.id, check.observation || '', check.behavior_note || '', req.user.id]);
-    }
+    await run(`
+      INSERT INTO checks (date, time_slot, vessel_id, camera_id, status, observation, behavior_note, user_id, updated_at)
+      VALUES ${values}
+      ON CONFLICT(date, time_slot, camera_id) DO UPDATE SET
+        status = EXCLUDED.status,
+        observation = EXCLUDED.observation,
+        behavior_note = EXCLUDED.behavior_note,
+        user_id = EXCLUDED.user_id,
+        updated_at = CURRENT_TIMESTAMP
+    `, params);
   }
 
-  const savedChecks = await checksForDate(req.params.date);
+  const savedChecksForDate = await checksForDate(req.params.date);
+  const submittedKeys = new Set(submittedChecks.map((check) => `${check.camera_id}:${check.time_slot}`));
+  const savedChecks = savedChecksForDate.filter((check) => submittedKeys.has(`${check.camera_id}:${check.time_slot}`));
+  const savedByKey = new Map(savedChecks.map((check) => [`${check.camera_id}:${check.time_slot}`, check]));
+  const observations = submittedChecks
+    .filter((check) => check.observation || check.behavior_note)
+    .map((check) => ({ check, saved: savedByKey.get(`${check.camera_id}:${check.time_slot}`) }))
+    .filter(({ saved }) => saved);
+
+  for (let index = 0; index < observations.length; index += 100) {
+    const batch = observations.slice(index, index + 100);
+    const values = batch.map(() => '(?, ?, ?, ?)').join(', ');
+    const params = batch.flatMap(({ check, saved }) => [
+      saved.id,
+      check.observation || '',
+      check.behavior_note || '',
+      req.user.id
+    ]);
+
+      await run(`
+        INSERT INTO observations (check_id, note, behavior_note, user_id)
+        VALUES ${values}
+      `, params);
+  }
+
   const settings = await get('SELECT enabled, google_webhook_url FROM excel_settings WHERE id = 1');
-  const googleSync = await syncGoogleSheets(settings, savedChecks);
+  const googleSync = await syncGoogleSheets(settings, savedChecks, { timeoutMs: 15000 });
 
   if (googleSync.ok) {
     await run('UPDATE excel_settings SET last_sync_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1', [googleSync.syncedAt]);

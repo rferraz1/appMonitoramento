@@ -1,4 +1,4 @@
-export async function syncGoogleSheets(settings, checks) {
+export async function syncGoogleSheets(settings, checks, { timeoutMs } = {}) {
   if (!settings?.enabled) {
     return { ok: false, skipped: true, message: 'Integração Google Sheets está desativada.' };
   }
@@ -35,7 +35,8 @@ export async function syncGoogleSheets(settings, checks) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-        redirect: 'follow'
+        redirect: 'follow',
+        signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined
       });
 
       if (!response.ok) {
@@ -45,6 +46,9 @@ export async function syncGoogleSheets(settings, checks) {
       if (!result?.ok) return { ok: false, message: 'O Apps Script não confirmou a atualização da planilha.' };
       rowsSent += Number(result.registros ?? payload.checks.length);
     } catch (error) {
+      if (error.name === 'TimeoutError') {
+        return { ok: false, message: 'A sincronização da Planilha Google excedeu o tempo de espera.' };
+      }
       return { ok: false, message: `Falha ao atualizar a Planilha Google: ${error.message}` };
     }
   }

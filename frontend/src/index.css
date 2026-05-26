@@ -70,8 +70,15 @@ body {
     gap: 14px;
   }
 
+  .analytics-cards,
+  .stat-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   .analytics-chart {
     break-inside: avoid;
+    page-break-inside: avoid;
     box-shadow: none;
     height: 240px;
   }
