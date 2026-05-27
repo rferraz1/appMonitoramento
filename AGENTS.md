@@ -35,6 +35,7 @@ Leia este arquivo antes de analisar ou alterar o projeto. Ele registra as deciso
 - A aba `Analitico` consulta a tabela `checks` pela API e portanto acompanha os status efetivamente salvos no app.
 - `Analitico` possui exportacao `PDF executivo`, usando a pagina com cards e graficos.
 - Nos cards de `Analitico`, cada camera conta uma vez pelo ultimo status no periodo filtrado; graficos continuam analisando registros por horario.
+- O grafico de disponibilidade do `Analitico` usa a nomenclatura `grupo` e deve preservar nomes completos legiveis.
 - `Relatorios` exporta CSV e Excel; o Excel tem `Resumo Executivo` e `Registros` formatados.
 - Ao alterar regras de status, manter consistencia entre Dashboard, API, Analitico, relatorios e sincronizacao da planilha.
 

@@ -27,6 +27,7 @@ export default function Analitico() {
 
   const periodLabel = filters.start && filters.end ? `${filters.start} a ${filters.end}` : filters.month;
   const chartBox = 'analytics-chart h-72 rounded-lg border border-slate-200 bg-white p-4 shadow-sm';
+  const groupChartBox = 'analytics-chart h-80 rounded-lg border border-slate-200 bg-white p-4 shadow-sm';
 
   return (
     <div className="analytics-report space-y-6">
@@ -62,10 +63,16 @@ export default function Analitico() {
       </div>
 
       <div className="analytics-charts grid gap-5 xl:grid-cols-2">
-        <div className={chartBox}>
-          <h2 className="mb-3 font-semibold">Disponibilidade por barco</h2>
+        <div className={groupChartBox}>
+          <h2 className="mb-3 font-semibold">Disponibilidade por grupo</h2>
           <ResponsiveContainer width="100%" height="85%">
-            <BarChart data={data?.vesselAvailability || []}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip /><Bar dataKey="disponibilidade" fill="#1f7ab8" /></BarChart>
+            <BarChart data={data?.groupAvailability || []} layout="vertical" margin={{ left: 4, right: 28 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" domain={[0, 100]} unit="%" />
+              <YAxis dataKey="name" type="category" width={205} interval={0} tick={{ fontSize: 12 }} />
+              <Tooltip formatter={(value) => [`${value}%`, 'Disponibilidade']} />
+              <Bar dataKey="disponibilidade" fill="#1f7ab8" />
+            </BarChart>
           </ResponsiveContainer>
         </div>
         <div className={chartBox}>

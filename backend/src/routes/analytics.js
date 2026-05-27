@@ -43,10 +43,10 @@ analyticsRouter.get('/', async (req, res) => {
     return [...map.entries()].map(([name, value]) => ({ name, value }));
   };
 
-  const vesselAvailability = [...new Set(checks.map((c) => c.vessel_name))].map((name) => {
-    const vesselChecks = checks.filter((c) => c.vessel_name === name);
-    const vesselOnline = vesselChecks.filter((c) => c.status === 'Online').length;
-    return { name, disponibilidade: vesselChecks.length ? Math.round((vesselOnline / vesselChecks.length) * 100) : 0 };
+  const groupAvailability = [...new Set(checks.map((c) => c.vessel_name))].map((name) => {
+    const groupChecks = checks.filter((c) => c.vessel_name === name);
+    const groupOnline = groupChecks.filter((c) => c.status === 'Online').length;
+    return { name, disponibilidade: groupChecks.length ? Math.round((groupOnline / groupChecks.length) * 100) : 0 };
   });
 
   const monthly = (await all(`
@@ -87,7 +87,7 @@ analyticsRouter.get('/', async (req, res) => {
       noAccess,
       availability: monitoredCameras ? Math.round((online / monitoredCameras) * 100) : 0
     },
-    vesselAvailability,
+    groupAvailability,
     cameraProblems: group((c) => c.camera_name, (c) => c.status !== 'Online'),
     onlineOfflineByMonth: monthly.map((row) => ({ name: row.month, Online: Number(row.online || 0), Offline: Number(row.offline || 0) })),
     sixMonths,
