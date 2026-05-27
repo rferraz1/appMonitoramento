@@ -30,6 +30,34 @@ body {
   @apply rounded-lg border border-slate-200 bg-white shadow-sm;
 }
 
+.analytics-hero {
+  background:
+    radial-gradient(circle at 90% 18%, rgba(31, 122, 184, 0.32), transparent 40%),
+    linear-gradient(125deg, #091827 0%, #102a43 52%, #123f5d 100%);
+}
+
+.analytics-filter {
+  @apply w-full rounded-md border border-white/15 bg-white/10 px-3 py-2 text-sm text-white outline-none transition focus:border-brand-100 focus:bg-white/15 focus:ring-2 focus:ring-brand-100/20;
+  color-scheme: dark;
+}
+
+.analytics-metric {
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.analytics-metric:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgb(15 23 42 / 7%);
+}
+
+.analytics-panel {
+  overflow: hidden;
+}
+
+.analytics-chart-body {
+  height: calc(100% - 69px);
+}
+
 @media print {
   @page {
     size: A4 landscape;
@@ -61,11 +89,6 @@ body {
     margin-bottom: 18px;
   }
 
-  .analytics-report > div:nth-child(2) h1,
-  .analytics-report > div:nth-child(2) p {
-    display: none;
-  }
-
   .analytics-report {
     gap: 14px;
   }
@@ -93,6 +116,10 @@ body {
     page-break-inside: avoid;
     box-shadow: none;
     height: 225px;
+  }
+
+  .analytics-chart-body {
+    height: calc(100% - 62px);
   }
 
   .analytics-chart-annual {
