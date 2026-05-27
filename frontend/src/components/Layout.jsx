@@ -1,4 +1,4 @@
-import { BarChart3, Camera, FileDown, LayoutDashboard, LogOut, Ship, Table2, Users } from 'lucide-react';
+import { BarChart3, Boxes, Camera, FileDown, LayoutDashboard, LogOut, Ship, Table2, Users } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -9,6 +9,7 @@ const nav = [
   { to: '/analitico', label: 'Analítico', icon: BarChart3 },
   { to: '/relatorios', label: 'Relatórios', icon: FileDown },
   { to: '/excel', label: 'Integração Planilha', icon: Table2 },
+  { to: '/estoque-ti', label: 'Estoque de TI', icon: Boxes },
   { to: '/usuarios', label: 'Usuários', icon: Users }
 ];
 

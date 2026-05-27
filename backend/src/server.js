@@ -14,6 +14,7 @@ import { analyticsRouter } from './routes/analytics.js';
 import { reportsRouter } from './routes/reports.js';
 import { excelRouter } from './routes/excel.js';
 import { usersRouter } from './routes/users.js';
+import { inventoryRouter } from './routes/inventory.js';
 
 dotenv.config();
 await migrate();
@@ -38,6 +39,7 @@ app.use('/api/analytics', authRequired, analyticsRouter);
 app.use('/api/reports', authRequired, reportsRouter);
 app.use('/api/excel', authRequired, excelRouter);
 app.use('/api/users', authRequired, usersRouter);
+app.use('/api/inventory', authRequired, inventoryRouter);
 
 const frontendDist = path.resolve(__dirname, '../../frontend/dist');
 app.use(express.static(frontendDist));

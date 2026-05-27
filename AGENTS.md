@@ -34,6 +34,7 @@ Leia este arquivo antes de analisar ou alterar o projeto. Ele registra as deciso
 - A fonte oficial do app e o banco Postgres em producao; a planilha recebe sincronizacao dos registros salvos.
 - A aba `Analitico` consulta a tabela `checks` pela API e portanto acompanha os status efetivamente salvos no app.
 - `Analitico` possui exportacao `PDF executivo`, usando a pagina com cards e graficos.
+- Nos cards de `Analitico`, cada camera conta uma vez pelo ultimo status no periodo filtrado; graficos continuam analisando registros por horario.
 - `Relatorios` exporta CSV e Excel; o Excel tem `Resumo Executivo` e `Registros` formatados.
 - Ao alterar regras de status, manter consistencia entre Dashboard, API, Analitico, relatorios e sincronizacao da planilha.
 
@@ -72,6 +73,7 @@ Leia este arquivo antes de analisar ou alterar o projeto. Ele registra as deciso
 - Analitico com graficos Recharts e exportacao visual para PDF.
 - Relatorios CSV/XLSX executivos.
 - Integracao Google Sheets ativa.
+- Estoque de TI para cadastro de equipamentos recebidos, modelos e quantidades.
 - Preparacao antiga para Excel/Microsoft Graph pode permanecer apenas como compatibilidade futura, sem ser apresentada como fluxo ativo.
 
 ## Regras de Manutencao

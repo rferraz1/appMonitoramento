@@ -149,6 +149,18 @@ export async function migrate() {
         reviewed_by INTEGER REFERENCES users(id)
       );
 
+      CREATE TABLE IF NOT EXISTS inventory_items (
+        id SERIAL PRIMARY KEY,
+        category TEXT NOT NULL,
+        name TEXT NOT NULL,
+        model TEXT,
+        quantity INTEGER NOT NULL DEFAULT 0 CHECK(quantity >= 0),
+        received_at TEXT,
+        notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
       ALTER TABLE excel_settings ADD COLUMN IF NOT EXISTS google_sheet_url TEXT;
       ALTER TABLE excel_settings ADD COLUMN IF NOT EXISTS google_webhook_url TEXT;
     `);
@@ -239,6 +251,18 @@ export async function migrate() {
       reviewed_at TEXT,
       reviewed_by INTEGER,
       FOREIGN KEY (reviewed_by) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS inventory_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category TEXT NOT NULL,
+      name TEXT NOT NULL,
+      model TEXT,
+      quantity INTEGER NOT NULL DEFAULT 0 CHECK(quantity >= 0),
+      received_at TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `);
 

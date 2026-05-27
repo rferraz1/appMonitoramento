@@ -13,6 +13,7 @@ import Analitico from './pages/Analitico.jsx';
 import Relatorios from './pages/Relatorios.jsx';
 import ExcelIntegracao from './pages/ExcelIntegracao.jsx';
 import Usuarios from './pages/Usuarios.jsx';
+import EstoqueTI from './pages/EstoqueTI.jsx';
 
 const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
@@ -30,6 +31,7 @@ const router = createBrowserRouter([
       { path: 'analitico', element: <Analitico /> },
       { path: 'relatorios', element: <Relatorios /> },
       { path: 'excel', element: <ExcelIntegracao /> },
+      { path: 'estoque-ti', element: <EstoqueTI /> },
       { path: 'usuarios', element: <Usuarios /> }
     ]
   },

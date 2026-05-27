@@ -20,7 +20,15 @@ analyticsRouter.get('/', async (req, res) => {
   `, [start, end]);
 
   const total = checks.length;
-  const count = (status) => checks.filter((check) => check.status === status).length;
+  const latestByCamera = new Map();
+  checks.forEach((check) => {
+    const current = latestByCamera.get(check.camera_id);
+    const key = `${check.date}-${check.time_slot}`;
+    if (!current || key > `${current.date}-${current.time_slot}`) latestByCamera.set(check.camera_id, check);
+  });
+  const currentStatuses = [...latestByCamera.values()];
+  const monitoredCameras = currentStatuses.length;
+  const count = (status) => currentStatuses.filter((check) => check.status === status).length;
   const online = count('Online');
   const offline = count('Offline');
   const maintenance = count('Manutenção');
@@ -71,12 +79,13 @@ analyticsRouter.get('/', async (req, res) => {
 
   res.json({
     cards: {
-      total,
+      cameras: monitoredCameras,
+      records: total,
       online,
       offline,
       maintenance,
       noAccess,
-      availability: total ? Math.round((online / total) * 100) : 0
+      availability: monitoredCameras ? Math.round((online / monitoredCameras) * 100) : 0
     },
     vesselAvailability,
     cameraProblems: group((c) => c.camera_name, (c) => c.status !== 'Online'),

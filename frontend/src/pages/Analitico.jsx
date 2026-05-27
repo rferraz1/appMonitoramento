@@ -38,7 +38,7 @@ export default function Analitico() {
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <h1 className="text-2xl font-bold text-slate-950">Analítico</h1>
-          <p className="text-sm text-slate-500">Indicadores operacionais por mês, período e histórico.</p>
+          <p className="text-sm text-slate-500">Cards mostram o último status de cada câmera no período; gráficos analisam as verificações por horário.</p>
         </div>
         <div className="print-hidden grid gap-2 sm:grid-cols-[160px_160px_160px_auto_auto]">
           <input type="month" className="input" value={filters.month} onChange={(e) => setFilters({ ...filters, month: e.target.value, start: '', end: '' })} />
@@ -53,12 +53,12 @@ export default function Analitico() {
       </div>
 
       <div className="analytics-cards grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-        <StatCard label="Total" value={data?.cards.total || 0} />
-        <StatCard label="Online" value={data?.cards.online || 0} tone="green" />
-        <StatCard label="Offline" value={data?.cards.offline || 0} tone="red" />
-        <StatCard label="Manutenção" value={data?.cards.maintenance || 0} tone="yellow" />
-        <StatCard label="Sem acesso" value={data?.cards.noAccess || 0} tone="gray" />
-        <StatCard label="Disponibilidade" value={`${data?.cards.availability || 0}%`} tone="green" />
+        <StatCard label="Câmeras monitoradas" value={data?.cards.cameras || 0} />
+        <StatCard label="Online atual" value={data?.cards.online || 0} tone="green" />
+        <StatCard label="Offline atual" value={data?.cards.offline || 0} tone="red" />
+        <StatCard label="Manutenção atual" value={data?.cards.maintenance || 0} tone="yellow" />
+        <StatCard label="Sem acesso atual" value={data?.cards.noAccess || 0} tone="gray" />
+        <StatCard label="Disponib. atual" value={`${data?.cards.availability || 0}%`} tone="green" />
       </div>
 
       <div className="analytics-charts grid gap-5 xl:grid-cols-2">

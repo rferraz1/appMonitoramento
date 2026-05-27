@@ -264,14 +264,10 @@ export default function Dashboard() {
         </div>
         <div className="mt-3 grid gap-3 xl:grid-cols-[112px_1fr] xl:items-center">
           <span className="text-sm font-medium text-slate-600">Repetir status</span>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2">
             <button className="btn-secondary h-10 px-3" onClick={() => repeatStatuses('10:00', '13:00')}>
               <Copy size={16} />
               10:00 para 13:00
-            </button>
-            <button className="btn-secondary h-10 px-3" onClick={() => repeatStatuses('10:00', '16:00')}>
-              <Copy size={16} />
-              10:00 para 16:00
             </button>
             <button className="btn-secondary h-10 px-3" onClick={() => repeatStatuses('13:00', '16:00')}>
               <Copy size={16} />

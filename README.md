@@ -11,6 +11,7 @@ Sistema web para substituir a planilha de checagem diária de câmeras de barcos
 - Gráficos: Recharts
 - Exportação: CSV e Excel
 - Integração de status com Google Sheets via Apps Script
+- Controle de estoque de equipamentos de TI
 - Estrutura mantida para futura integração Microsoft Graph / Excel
 
 ## Instalação
@@ -109,6 +110,10 @@ Data	ID	Nome da Camera	Grupo	Horario	Status	Observacao	Comportamento	Responsavel
 ```
 
 O Apps Script deve estar implantado como aplicativo da web executando como o proprietário da planilha e acessível a qualquer pessoa com a URL.
+
+## Estoque de TI
+
+A aba **Estoque de TI** cadastra equipamentos recebidos, como kits de mouse e teclado e celulares por modelo. Cada item registra categoria, equipamento, modelo, quantidade, data de recebimento e observação, com edição posterior para ajustes de quantidade.
 
 ## Modelo Excel e integração futura Microsoft
 
