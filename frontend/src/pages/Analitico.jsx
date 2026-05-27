@@ -4,6 +4,23 @@ import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContai
 import { api } from '../api/client.js';
 import { StatCard } from '../components/StatCard.jsx';
 
+const monthlyStatuses = ['Online', 'Offline', 'Manutenção', 'Sem acesso'];
+
+function MonthlyStatusTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0].payload;
+  return (
+    <div className="rounded-md border border-slate-200 bg-white p-3 text-xs shadow-sm">
+      <p className="mb-2 font-semibold text-slate-900">{label} · {row.totalRecords} verificações</p>
+      {monthlyStatuses.map((status) => (
+        <p className="text-slate-600" key={status}>
+          {status}: <span className="font-semibold">{row[status]}%</span> ({row[`${status} registros`]})
+        </p>
+      ))}
+    </div>
+  );
+}
+
 export default function Analitico() {
   const [filters, setFilters] = useState({ month: new Date().toISOString().slice(0, 7), start: '', end: '' });
   const [data, setData] = useState(null);
@@ -77,9 +94,19 @@ export default function Analitico() {
           </ResponsiveContainer>
         </div>
         <div className={chartBox}>
-          <h2 className="mb-3 font-semibold">Online vs Offline por mês</h2>
+          <h2 className="mb-3 font-semibold">Status por mês (%)</h2>
           <ResponsiveContainer width="100%" height="85%">
-            <BarChart data={data?.onlineOfflineByMonth || []}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip /><Legend /><Bar dataKey="Online" fill="#16a34a" /><Bar dataKey="Offline" fill="#dc2626" /></BarChart>
+            <BarChart data={data?.monthlyStatus || []}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis domain={[0, 100]} unit="%" />
+              <Tooltip content={<MonthlyStatusTooltip />} />
+              <Legend />
+              <Bar dataKey="Online" stackId="status" fill="#16a34a" />
+              <Bar dataKey="Offline" stackId="status" fill="#dc2626" />
+              <Bar dataKey="Manutenção" stackId="status" fill="#d97706" />
+              <Bar dataKey="Sem acesso" stackId="status" fill="#64748b" />
+            </BarChart>
           </ResponsiveContainer>
         </div>
         <div

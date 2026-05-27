@@ -57,6 +57,8 @@ analyticsRouter.get('/', async (req, res) => {
     SELECT substr(date, 1, 7) AS month,
       SUM(CASE WHEN status = 'Online' THEN 1 ELSE 0 END) AS online,
       SUM(CASE WHEN status = 'Offline' THEN 1 ELSE 0 END) AS offline,
+      SUM(CASE WHEN status = 'Manutenção' THEN 1 ELSE 0 END) AS maintenance,
+      SUM(CASE WHEN status = 'Sem acesso' THEN 1 ELSE 0 END) AS no_access,
       COUNT(*) AS total
     FROM checks
     GROUP BY substr(date, 1, 7)
@@ -81,6 +83,23 @@ analyticsRouter.get('/', async (req, res) => {
     disponibilidade: row.total ? Math.round((Number(row.online || 0) / Number(row.total)) * 100) : 0
   }));
 
+  const monthlyStatus = monthly.map((row) => {
+    const totalRecords = Number(row.total || 0);
+    const metric = (value) => totalRecords ? Math.round((Number(value || 0) / totalRecords) * 100) : 0;
+    return {
+      name: row.month,
+      totalRecords,
+      Online: metric(row.online),
+      'Online registros': Number(row.online || 0),
+      Offline: metric(row.offline),
+      'Offline registros': Number(row.offline || 0),
+      Manutenção: metric(row.maintenance),
+      'Manutenção registros': Number(row.maintenance || 0),
+      'Sem acesso': metric(row.no_access),
+      'Sem acesso registros': Number(row.no_access || 0)
+    };
+  });
+
   res.json({
     cards: {
       cameras: monitoredCameras,
@@ -93,7 +112,7 @@ analyticsRouter.get('/', async (req, res) => {
     },
     groupAvailability,
     cameraProblems,
-    onlineOfflineByMonth: monthly.map((row) => ({ name: row.month, Online: Number(row.online || 0), Offline: Number(row.offline || 0) })),
+    monthlyStatus,
     sixMonths,
     annual
   });

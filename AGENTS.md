@@ -37,6 +37,7 @@ Leia este arquivo antes de analisar ou alterar o projeto. Ele registra as deciso
 - Nos cards de `Analitico`, cada camera conta uma vez pelo ultimo status no periodo filtrado; graficos continuam analisando registros por horario.
 - O grafico de disponibilidade do `Analitico` usa a nomenclatura `grupo` e deve preservar nomes completos legiveis.
 - O grafico de problemas por camera identifica grupo e camera, sem consolidar cameras diferentes que tenham o mesmo nome.
+- O grafico mensal do `Analitico` apresenta percentuais de status; quantidades sao verificacoes por horario e aparecem apenas como detalhamento.
 - `Relatorios` exporta CSV e Excel; o Excel tem `Resumo Executivo` e `Registros` formatados.
 - Ao alterar regras de status, manter consistencia entre Dashboard, API, Analitico, relatorios e sincronizacao da planilha.
 
