@@ -99,4 +99,9 @@ body {
     grid-column: 1 / -1 !important;
     height: 480px;
   }
+
+  .analytics-chart-problems {
+    grid-column: 1 / -1 !important;
+    height: 480px !important;
+  }
 }

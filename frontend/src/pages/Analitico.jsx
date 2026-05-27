@@ -28,6 +28,7 @@ export default function Analitico() {
   const periodLabel = filters.start && filters.end ? `${filters.start} a ${filters.end}` : filters.month;
   const chartBox = 'analytics-chart h-72 rounded-lg border border-slate-200 bg-white p-4 shadow-sm';
   const groupChartBox = 'analytics-chart h-80 rounded-lg border border-slate-200 bg-white p-4 shadow-sm';
+  const problemsChartHeight = Math.max(320, (data?.cameraProblems?.length || 0) * 34 + 70);
 
   return (
     <div className="analytics-report space-y-6">
@@ -76,15 +77,24 @@ export default function Analitico() {
           </ResponsiveContainer>
         </div>
         <div className={chartBox}>
-          <h2 className="mb-3 font-semibold">Problemas por câmera</h2>
-          <ResponsiveContainer width="100%" height="85%">
-            <BarChart data={data?.cameraProblems || []}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip /><Bar dataKey="value" fill="#dc2626" /></BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className={chartBox}>
           <h2 className="mb-3 font-semibold">Online vs Offline por mês</h2>
           <ResponsiveContainer width="100%" height="85%">
             <BarChart data={data?.onlineOfflineByMonth || []}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip /><Legend /><Bar dataKey="Online" fill="#16a34a" /><Bar dataKey="Offline" fill="#dc2626" /></BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div
+          className="analytics-chart analytics-chart-problems rounded-lg border border-slate-200 bg-white p-4 shadow-sm xl:col-span-2"
+          style={{ height: `${problemsChartHeight}px` }}
+        >
+          <h2 className="mb-3 font-semibold">Problemas por câmera</h2>
+          <ResponsiveContainer width="100%" height="90%">
+            <BarChart data={data?.cameraProblems || []} layout="vertical" margin={{ left: 8, right: 28 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" allowDecimals={false} />
+              <YAxis dataKey="label" type="category" width={430} interval={0} tick={{ fontSize: 12 }} />
+              <Tooltip formatter={(value) => [value, 'Ocorrências']} />
+              <Bar dataKey="value" fill="#dc2626" />
+            </BarChart>
           </ResponsiveContainer>
         </div>
         <div className={chartBox}>
