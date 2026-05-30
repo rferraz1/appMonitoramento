@@ -24,15 +24,6 @@ usersRouter.get('/', async (_req, res) => {
   res.json(users.map(publicUser));
 });
 
-usersRouter.get('/requests', async (_req, res) => {
-  const requests = await all(`
-    SELECT id, name, email, status, requested_at, reviewed_at, reviewed_by
-    FROM access_requests
-    ORDER BY requested_at DESC
-  `);
-  res.json(requests);
-});
-
 usersRouter.post('/', async (req, res) => {
   const { name, email, password, role = 'operator' } = req.body;
   if (!name?.trim() || !email?.trim() || !password) {
@@ -58,40 +49,4 @@ usersRouter.put('/:id/password', async (req, res) => {
 
   await run('UPDATE users SET password_hash = ? WHERE id = ?', [bcrypt.hashSync(password, 10), req.params.id]);
   res.json({ message: 'Senha redefinida com sucesso.' });
-});
-
-usersRouter.post('/requests/:id/approve', async (req, res) => {
-  const request = await get('SELECT * FROM access_requests WHERE id = ?', [req.params.id]);
-  if (!request) return res.status(404).json({ message: 'Solicitação não encontrada.' });
-  if (request.status !== 'pending') return res.status(400).json({ message: 'Solicitação já analisada.' });
-
-  const exists = await get('SELECT id FROM users WHERE email = ?', [request.email]);
-  if (!exists) {
-    await run(`
-      INSERT INTO users (name, email, password_hash, role)
-      VALUES (?, ?, ?, ?)
-    `, [request.name, request.email, request.password_hash, 'operator']);
-  }
-
-  await run(`
-    UPDATE access_requests
-    SET status = 'approved', reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ?
-    WHERE id = ?
-  `, [req.user.id, req.params.id]);
-
-  res.json({ message: 'Solicitação aprovada. Usuário criado como operador.' });
-});
-
-usersRouter.post('/requests/:id/reject', async (req, res) => {
-  const request = await get('SELECT * FROM access_requests WHERE id = ?', [req.params.id]);
-  if (!request) return res.status(404).json({ message: 'Solicitação não encontrada.' });
-  if (request.status !== 'pending') return res.status(400).json({ message: 'Solicitação já analisada.' });
-
-  await run(`
-    UPDATE access_requests
-    SET status = 'rejected', reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ?
-    WHERE id = ?
-  `, [req.user.id, req.params.id]);
-
-  res.json({ message: 'Solicitação rejeitada.' });
 });

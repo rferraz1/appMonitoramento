@@ -55,14 +55,9 @@ Variáveis na Vercel:
 DATABASE_URL=postgresql://...
 JWT_SECRET=um-segredo-grande
 NODE_ENV=production
-ADMIN_EMAIL=seu-email-pessoal@exemplo.com
-RESEND_API_KEY=sua-chave-resend
-EMAIL_FROM=Baru Offshore <onboarding@seudominio.com>
 ```
 
 Não defina `VITE_API_URL` na Vercel. O frontend usa `/api` no mesmo domínio.
-
-`ADMIN_EMAIL`, `RESEND_API_KEY` e `EMAIL_FROM` são usados para avisar por e-mail quando alguém solicitar conta. Sem essas variáveis, o pedido continua funcionando e aparece na aba **Usuários e Acessos** para aprovação manual.
 
 Build settings:
 
@@ -79,11 +74,31 @@ O arquivo `vercel.json` já direciona `/api/*` para o backend Express serverless
 - Usuário: `rsferraz`
 - Senha: `123@Mudar`
 
-## Fluxo de criação de conta
+## Fluxo de usuários
 
-Na tela de login existe a opção **Criar conta**. O usuário informa nome, e-mail/login e senha. A conta não é liberada automaticamente.
+Novas contas são criadas por um administrador dentro do sistema, em **Usuários e Acessos**. O login público não cria ou solicita contas.
 
-Um administrador deve entrar no sistema, abrir **Usuários e Acessos** e aprovar ou rejeitar a solicitação. Ao aprovar, o sistema cria o usuário como operador usando a senha definida na solicitação.
+Cada ambiente grava seus próprios usuários no banco configurado em `DATABASE_URL`. Ao migrar para outro Vercel/banco, crie o primeiro acesso com o login inicial e depois cadastre os usuários oficiais pela tela administrativa.
+
+## Ambientes em paralelo
+
+É possível manter o mesmo código em dois repositórios/remotes e publicar em dois projetos Vercel diferentes. O ponto importante é separar dados e integrações:
+
+- Código: pode ser o mesmo commit nos dois Git remotes.
+- Vercel pessoal e Vercel trabalho: cada um com suas próprias variáveis de ambiente.
+- Banco: cada ambiente deve ter seu próprio `DATABASE_URL`, salvo decisão explícita de compartilhar dados.
+- Planilha: cada ambiente deve configurar sua própria Planilha Google e URL do Apps Script na aba **Integração Planilha**.
+
+Exemplo de remotes locais:
+
+```bash
+git remote add pessoal https://github.com/seu-usuario/repositorio-pessoal.git
+git remote add trabalho https://github.com/organizacao/repositorio-trabalho.git
+git push pessoal main
+git push trabalho main
+```
+
+Se os dois projetos Vercel estiverem ligados aos respectivos repositórios, cada push publica o ambiente correspondente.
 
 ## Resetar banco
 

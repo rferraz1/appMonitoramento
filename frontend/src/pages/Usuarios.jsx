@@ -1,18 +1,16 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, KeyRound, UserPlus, XCircle } from 'lucide-react';
+import { KeyRound, UserPlus } from 'lucide-react';
 import { api } from '../api/client.js';
 
 export default function Usuarios() {
   const [users, setUsers] = useState([]);
-  const [requests, setRequests] = useState([]);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'operator' });
   const [passwords, setPasswords] = useState({});
   const [message, setMessage] = useState('');
 
   async function load() {
-    const [usersResponse, requestsResponse] = await Promise.all([api.get('/users'), api.get('/users/requests')]);
+    const usersResponse = await api.get('/users');
     setUsers(usersResponse.data);
-    setRequests(requestsResponse.data);
   }
 
   useEffect(() => {
@@ -43,86 +41,14 @@ export default function Usuarios() {
     }
   }
 
-  async function approveRequest(requestId) {
-    setMessage('');
-    try {
-      const response = await api.post(`/users/requests/${requestId}/approve`);
-      await load();
-      setMessage(response.data?.message || 'Solicitação aprovada.');
-    } catch (error) {
-      setMessage(error.response?.data?.message || 'Não foi possível aprovar a solicitação.');
-    }
-  }
-
-  async function rejectRequest(requestId) {
-    setMessage('');
-    try {
-      const response = await api.post(`/users/requests/${requestId}/reject`);
-      await load();
-      setMessage(response.data?.message || 'Solicitação rejeitada.');
-    } catch (error) {
-      setMessage(error.response?.data?.message || 'Não foi possível rejeitar a solicitação.');
-    }
-  }
-
-  const statusLabel = {
-    pending: 'Pendente',
-    approved: 'Aprovada',
-    rejected: 'Rejeitada'
-  };
-
-  const statusClass = {
-    pending: 'bg-amber-50 text-amber-700 ring-amber-200',
-    approved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-    rejected: 'bg-red-50 text-red-700 ring-red-200'
-  };
-
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-950">Usuários e Acessos</h1>
-        <p className="text-sm text-slate-500">Aprove solicitações de conta ou crie acessos manualmente.</p>
+        <p className="text-sm text-slate-500">Crie acessos diretamente no banco do ambiente atual e redefina senhas quando necessário.</p>
       </div>
 
       {message && <div className="rounded-lg border border-brand-100 bg-brand-50 px-4 py-3 text-sm text-brand-700">{message}</div>}
-
-      <section className="panel overflow-hidden">
-        <div className="border-b border-slate-200 px-5 py-4">
-          <h2 className="font-semibold text-slate-950">Solicitações de acesso</h2>
-          <p className="text-sm text-slate-500">Quem clicar em criar conta na tela de login aparece aqui para sua aprovação.</p>
-        </div>
-        <div className="divide-y divide-slate-100">
-          {requests.length === 0 && <p className="p-5 text-sm text-slate-500">Nenhuma solicitação registrada.</p>}
-          {requests.map((request) => (
-            <div className="grid gap-3 p-5 lg:grid-cols-[1fr_170px_160px_auto] lg:items-center" key={request.id}>
-              <div>
-                <p className="font-medium text-slate-900">{request.name}</p>
-                <p className="text-sm text-slate-500">{request.email}</p>
-              </div>
-              <p className="text-sm text-slate-500">
-                {request.requested_at ? new Date(request.requested_at).toLocaleString('pt-BR') : '-'}
-              </p>
-              <span className={`w-fit rounded-full px-2 py-1 text-xs font-semibold ring-1 ${statusClass[request.status] || statusClass.pending}`}>
-                {statusLabel[request.status] || request.status}
-              </span>
-              {request.status === 'pending' ? (
-                <div className="flex flex-wrap gap-2">
-                  <button className="btn-primary" onClick={() => approveRequest(request.id)}>
-                    <CheckCircle2 size={16} />
-                    Aprovar
-                  </button>
-                  <button className="btn-secondary" onClick={() => rejectRequest(request.id)}>
-                    <XCircle size={16} />
-                    Rejeitar
-                  </button>
-                </div>
-              ) : (
-                <span className="text-sm text-slate-400">Analisada</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
 
       <section className="panel p-5">
         <h2 className="font-semibold text-slate-950">Novo usuário</h2>

@@ -8,7 +8,7 @@ Leia este arquivo antes de analisar ou alterar o projeto. Ele registra as deciso
 - URL publicada: `https://app-monitoramento.vercel.app`.
 - Stack: React/Vite/Tailwind no frontend, Node/Express no backend, Postgres Neon em producao e SQLite apenas para desenvolvimento local.
 - Deploy: Vercel ligado ao repositorio GitHub; push na branch `main` dispara publicacao.
-- Autenticacao JWT; existe fluxo de solicitacao de conta e aprovacao pelo administrador.
+- Autenticacao JWT; novas contas sao criadas pelo administrador em `Usuarios e Acessos`, direto no banco do ambiente.
 - Nao registrar credenciais, tokens, URLs privadas de webhook ou connection strings no repositorio.
 
 ## Escopo Operacional Validado
@@ -16,7 +16,7 @@ Leia este arquivo antes de analisar ou alterar o projeto. Ele registra as deciso
 - Existem 60 cameras distribuidas nos grupos cadastrados em `backend/src/db/cameraCatalog.js`.
 - Horarios fixos: `10:00`, `13:00` e `16:00`.
 - Uso operacional principal: marcar `Offline` manualmente e aplicar `restantes online` em lote.
-- O Dashboard tambem oferece copia de status entre horarios: `10:00 -> 13:00`, `10:00 -> 16:00` e `13:00 -> 16:00`.
+- O Dashboard oferece copia de status entre horarios sequenciais: `10:00 -> 13:00` e `13:00 -> 16:00`.
 - Acao em lote afeta o grupo exibido; selecionando `Todos os grupos`, afeta todas as cameras.
 - Copia de horario copia status, nao observacoes nem nota de comportamento.
 - Dados de testes foram zerados no banco de producao em 24/05/2026; a operacao real deve iniciar limpa.
@@ -69,8 +69,7 @@ Leia este arquivo antes de analisar ou alterar o projeto. Ele registra as deciso
 ## Funcionalidades Implementadas Importantes
 
 - Login padrao inicial documentado no `README.md`; preferir troca de senha pelo fluxo do sistema.
-- Solicitacao de conta pelo login e aprovacao/rejeicao administrativa em `Usuarios e Acessos`.
-- E-mail de aviso de nova solicitacao opcional via Resend.
+- Criacao administrativa de usuarios em `Usuarios e Acessos`.
 - Cadastro e ativacao/desativacao de grupos/cameras.
 - Dashboard por data e grupo, rastreabilidade de usuario e data de edicao.
 - Acoes rapidas de status.
@@ -97,3 +96,10 @@ Leia este arquivo antes de analisar ou alterar o projeto. Ele registra as deciso
 3. Se o pedido envolver producao, confirme primeiro o comportamento na URL publicada.
 4. Se envolver Google Sheets/Apps Script, lembre que o script externo nao esta no repo; solicite o codigo atual quando necessario.
 5. Preserve o fluxo atual: app salva no banco, sincroniza para Google Sheets e apresenta dados no Analitico/relatorios.
+
+## Ambientes Paralelos
+
+- O mesmo commit pode ser enviado para remotes Git diferentes, como pessoal e trabalho.
+- Cada projeto Vercel deve ter `DATABASE_URL` e `JWT_SECRET` proprios.
+- A Planilha Google e o Apps Script sao configurados por ambiente na aba `Integracao Planilha`; nao hardcode URLs no repositorio.
+- Nao compartilhar banco pessoal/trabalho sem pedido explicito, para evitar mistura de usuarios e registros operacionais.

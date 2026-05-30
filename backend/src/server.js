@@ -40,6 +40,7 @@ app.use('/api/reports', authRequired, reportsRouter);
 app.use('/api/excel', authRequired, excelRouter);
 app.use('/api/users', authRequired, usersRouter);
 app.use('/api/inventory', authRequired, inventoryRouter);
+app.use('/api', (_req, res) => res.status(404).json({ message: 'Rota da API não encontrada.' }));
 
 const frontendDist = path.resolve(__dirname, '../../frontend/dist');
 app.use(express.static(frontendDist));
