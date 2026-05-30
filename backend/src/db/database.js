@@ -164,6 +164,7 @@ export async function migrate() {
       ALTER TABLE excel_settings ADD COLUMN IF NOT EXISTS google_sheet_url TEXT;
       ALTER TABLE excel_settings ADD COLUMN IF NOT EXISTS google_webhook_url TEXT;
     `);
+    await run("DELETE FROM access_requests WHERE name = ? AND email = ? AND status = ?", ['x', 'x', 'pending']);
     return;
   }
 
@@ -281,6 +282,8 @@ export async function migrate() {
       if (!String(error.message).includes('duplicate column name')) throw error;
     }
   }
+
+  sqliteDb.prepare("DELETE FROM access_requests WHERE name = ? AND email = ? AND status = ?").run('x', 'x', 'pending');
 }
 
 export function getDbFile() {
