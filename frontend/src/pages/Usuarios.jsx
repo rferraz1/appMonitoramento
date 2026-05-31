@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { KeyRound, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, UserPlus } from 'lucide-react';
 import { api } from '../api/client.js';
 
 export default function Usuarios() {
   const [users, setUsers] = useState([]);
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'operator' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', role: 'operator' });
   const [passwords, setPasswords] = useState({});
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const [visiblePasswords, setVisiblePasswords] = useState({});
   const [message, setMessage] = useState('');
 
   async function load() {
@@ -20,15 +22,21 @@ export default function Usuarios() {
   async function createUser(event) {
     event.preventDefault();
     setMessage('');
+    const password = form.password.trim();
+    const confirmPassword = form.confirmPassword.trim();
+    if (password !== confirmPassword) {
+      setMessage('As senhas digitadas não conferem.');
+      return;
+    }
     try {
       await api.post('/users', {
         ...form,
         email: form.email.trim(),
-        password: form.password.trim()
+        password
       });
-      setForm({ name: '', email: '', password: '', role: 'operator' });
+      setForm({ name: '', email: '', password: '', confirmPassword: '', role: 'operator' });
       await load();
-      setMessage('Usuário criado com sucesso.');
+      setMessage(`Usuário criado com sucesso. Login: ${form.email.trim().toLowerCase()}`);
     } catch (error) {
       setMessage(error.response?.data?.message || 'Não foi possível criar o usuário.');
     }
@@ -56,10 +64,35 @@ export default function Usuarios() {
 
       <section className="panel p-5">
         <h2 className="font-semibold text-slate-950">Novo usuário</h2>
-        <form onSubmit={createUser} className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_160px_180px_auto]">
+        <form onSubmit={createUser} className="mt-4 grid gap-3 xl:grid-cols-[1fr_1fr_180px_180px_170px_auto]">
           <input className="input" placeholder="Nome" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <input className="input" placeholder="E-mail/login" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          <input className="input" type="password" placeholder="Senha" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          <div className="relative">
+            <input
+              className="input pr-10"
+              type={showCreatePassword ? 'text' : 'password'}
+              placeholder="Senha"
+              autoComplete="new-password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+            />
+            <button
+              type="button"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-100"
+              onClick={() => setShowCreatePassword((value) => !value)}
+              title={showCreatePassword ? 'Ocultar senha' : 'Mostrar senha'}
+            >
+              {showCreatePassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          <input
+            className="input"
+            type={showCreatePassword ? 'text' : 'password'}
+            placeholder="Confirmar senha"
+            autoComplete="new-password"
+            value={form.confirmPassword}
+            onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+          />
           <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
             <option value="operator">Operador</option>
             <option value="admin">Administrador</option>
@@ -85,13 +118,24 @@ export default function Usuarios() {
               <span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
                 {user.role === 'admin' ? 'Administrador' : 'Operador'}
               </span>
-              <input
-                className="input"
-                type="password"
-                placeholder="Nova senha"
-                value={passwords[user.id] || ''}
-                onChange={(e) => setPasswords((current) => ({ ...current, [user.id]: e.target.value }))}
-              />
+              <div className="relative">
+                <input
+                  className="input pr-10"
+                  type={visiblePasswords[user.id] ? 'text' : 'password'}
+                  placeholder="Nova senha"
+                  autoComplete="new-password"
+                  value={passwords[user.id] || ''}
+                  onChange={(e) => setPasswords((current) => ({ ...current, [user.id]: e.target.value }))}
+                />
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-100"
+                  onClick={() => setVisiblePasswords((current) => ({ ...current, [user.id]: !current[user.id] }))}
+                  title={visiblePasswords[user.id] ? 'Ocultar senha' : 'Mostrar senha'}
+                >
+                  {visiblePasswords[user.id] ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
               <button className="btn-secondary" onClick={() => resetPassword(user.id)}>
                 <KeyRound size={16} />
                 Redefinir
