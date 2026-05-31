@@ -56,3 +56,17 @@ usersRouter.put('/:id/password', async (req, res) => {
   await run('UPDATE users SET password_hash = ? WHERE id = ?', [bcrypt.hashSync(normalizedPassword, 10), req.params.id]);
   res.json({ message: 'Senha redefinida com sucesso.' });
 });
+
+usersRouter.delete('/:id', async (req, res) => {
+  const user = await get('SELECT id, name, email, role FROM users WHERE id = ?', [req.params.id]);
+  if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
+  if (Number(user.id) === Number(req.user.id)) return res.status(400).json({ message: 'Você não pode excluir o próprio usuário logado.' });
+
+  if (user.role === 'admin') {
+    const admins = await get('SELECT COUNT(*) AS total FROM users WHERE role = ?', ['admin']);
+    if (Number(admins?.total || 0) <= 1) return res.status(400).json({ message: 'Não é possível excluir o último administrador.' });
+  }
+
+  await run('DELETE FROM users WHERE id = ?', [req.params.id]);
+  res.json({ message: `Usuário ${user.email} excluído com sucesso.` });
+});

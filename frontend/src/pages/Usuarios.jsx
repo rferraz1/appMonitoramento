@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff, KeyRound, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, Trash2, UserPlus } from 'lucide-react';
 import { api } from '../api/client.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function Usuarios() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', role: 'operator' });
   const [passwords, setPasswords] = useState({});
@@ -50,6 +52,18 @@ export default function Usuarios() {
       setMessage('Senha redefinida com sucesso.');
     } catch (error) {
       setMessage(error.response?.data?.message || 'Não foi possível redefinir a senha.');
+    }
+  }
+
+  async function deleteUser(user) {
+    if (!window.confirm(`Excluir o usuário ${user.email}? Esta ação não pode ser desfeita.`)) return;
+    setMessage('');
+    try {
+      const response = await api.delete(`/users/${user.id}`);
+      await load();
+      setMessage(response.data?.message || 'Usuário excluído com sucesso.');
+    } catch (error) {
+      setMessage(error.response?.data?.message || 'Não foi possível excluir o usuário.');
     }
   }
 
@@ -110,7 +124,7 @@ export default function Usuarios() {
         </div>
         <div className="divide-y divide-slate-100">
           {users.map((user) => (
-            <div className="grid gap-3 p-5 lg:grid-cols-[1fr_180px_260px_auto] lg:items-center" key={user.id}>
+            <div className="grid gap-3 p-5 xl:grid-cols-[1fr_180px_260px_auto_auto] xl:items-center" key={user.id}>
               <div>
                 <p className="font-medium text-slate-900">{user.name}</p>
                 <p className="text-sm text-slate-500">{user.email}</p>
@@ -139,6 +153,15 @@ export default function Usuarios() {
               <button className="btn-secondary" onClick={() => resetPassword(user.id)}>
                 <KeyRound size={16} />
                 Redefinir
+              </button>
+              <button
+                className="btn-secondary border-red-200 text-red-700 hover:bg-red-50"
+                onClick={() => deleteUser(user)}
+                disabled={Number(user.id) === Number(currentUser?.id)}
+                title={Number(user.id) === Number(currentUser?.id) ? 'Você não pode excluir seu próprio usuário logado' : 'Excluir usuário'}
+              >
+                <Trash2 size={16} />
+                Excluir
               </button>
             </div>
           ))}

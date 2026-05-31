@@ -71,6 +71,7 @@ Leia este arquivo antes de analisar ou alterar o projeto. Ele registra as deciso
 
 - Login padrao inicial documentado no `README.md`; preferir troca de senha pelo fluxo do sistema.
 - Criacao administrativa de usuarios em `Usuarios e Acessos`.
+- Administradores podem excluir usuarios criados, exceto o proprio usuario logado e o ultimo administrador.
 - Cadastro e ativacao/desativacao de grupos/cameras.
 - Dashboard por data e grupo, rastreabilidade de usuario e data de edicao.
 - Acoes rapidas de status.
