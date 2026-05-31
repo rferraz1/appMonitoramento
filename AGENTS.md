@@ -9,6 +9,7 @@ Leia este arquivo antes de analisar ou alterar o projeto. Ele registra as deciso
 - Stack: React/Vite/Tailwind no frontend, Node/Express no backend, Postgres Neon em producao e SQLite apenas para desenvolvimento local.
 - Deploy: Vercel ligado ao repositorio GitHub; push na branch `main` dispara publicacao.
 - Autenticacao JWT; novas contas sao criadas pelo administrador em `Usuarios e Acessos`, direto no banco do ambiente.
+- Login de usuario e cadastro administrativo normalizam login em minusculas e removem espacos acidentais nas bordas.
 - Nao registrar credenciais, tokens, URLs privadas de webhook ou connection strings no repositorio.
 
 ## Escopo Operacional Validado

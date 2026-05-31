@@ -4,6 +4,9 @@ import { all, get, run } from '../db/database.js';
 
 export const usersRouter = Router();
 
+const normalizeLogin = (value) => String(value || '').trim().toLowerCase();
+const normalizePassword = (value) => String(value || '').trim();
+
 function adminOnly(req, res, next) {
   if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Acesso restrito ao administrador.' });
   next();
@@ -26,27 +29,30 @@ usersRouter.get('/', async (_req, res) => {
 
 usersRouter.post('/', async (req, res) => {
   const { name, email, password, role = 'operator' } = req.body;
-  if (!name?.trim() || !email?.trim() || !password) {
+  const normalizedEmail = normalizeLogin(email);
+  const normalizedPassword = normalizePassword(password);
+  if (!name?.trim() || !normalizedEmail || !normalizedPassword) {
     return res.status(400).json({ message: 'Nome, e-mail e senha são obrigatórios.' });
   }
-  if (password.length < 6) return res.status(400).json({ message: 'A senha deve ter pelo menos 6 caracteres.' });
+  if (normalizedPassword.length < 6) return res.status(400).json({ message: 'A senha deve ter pelo menos 6 caracteres.' });
   if (!['admin', 'operator'].includes(role)) return res.status(400).json({ message: 'Perfil inválido.' });
 
-  const exists = await get('SELECT id FROM users WHERE email = ?', [email.trim()]);
+  const exists = await get('SELECT id FROM users WHERE lower(email) = ?', [normalizedEmail]);
   if (exists) return res.status(400).json({ message: 'Já existe usuário com esse e-mail.' });
 
   const user = await get(`
     INSERT INTO users (name, email, password_hash, role)
     VALUES (?, ?, ?, ?)
     RETURNING id, name, email, role, created_at
-  `, [name.trim(), email.trim(), bcrypt.hashSync(password, 10), role]);
+  `, [name.trim(), normalizedEmail, bcrypt.hashSync(normalizedPassword, 10), role]);
   res.status(201).json(publicUser(user));
 });
 
 usersRouter.put('/:id/password', async (req, res) => {
   const { password } = req.body;
-  if (!password || password.length < 6) return res.status(400).json({ message: 'A senha deve ter pelo menos 6 caracteres.' });
+  const normalizedPassword = normalizePassword(password);
+  if (!normalizedPassword || normalizedPassword.length < 6) return res.status(400).json({ message: 'A senha deve ter pelo menos 6 caracteres.' });
 
-  await run('UPDATE users SET password_hash = ? WHERE id = ?', [bcrypt.hashSync(password, 10), req.params.id]);
+  await run('UPDATE users SET password_hash = ? WHERE id = ?', [bcrypt.hashSync(normalizedPassword, 10), req.params.id]);
   res.json({ message: 'Senha redefinida com sucesso.' });
 });

@@ -21,7 +21,11 @@ export default function Usuarios() {
     event.preventDefault();
     setMessage('');
     try {
-      await api.post('/users', form);
+      await api.post('/users', {
+        ...form,
+        email: form.email.trim(),
+        password: form.password.trim()
+      });
       setForm({ name: '', email: '', password: '', role: 'operator' });
       await load();
       setMessage('Usuário criado com sucesso.');
@@ -33,7 +37,7 @@ export default function Usuarios() {
   async function resetPassword(userId) {
     setMessage('');
     try {
-      await api.put(`/users/${userId}/password`, { password: passwords[userId] || '' });
+      await api.put(`/users/${userId}/password`, { password: String(passwords[userId] || '').trim() });
       setPasswords((current) => ({ ...current, [userId]: '' }));
       setMessage('Senha redefinida com sucesso.');
     } catch (error) {
