@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Copy, Save, SignalHigh } from 'lucide-react';
+import { CalendarPlus, Copy, Save, SignalHigh } from 'lucide-react';
 import { api } from '../api/client.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const today = new Date().toISOString().slice(0, 10);
 const checkKey = (check) => `${check.camera_id}:${check.time_slot}`;
@@ -61,6 +62,7 @@ function TrafficStatus({ value, onChange }) {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const [date, setDate] = useState(today);
   const [data, setData] = useState(null);
   const [allGroups, setAllGroups] = useState([]);
@@ -69,6 +71,14 @@ export default function Dashboard() {
   const [message, setMessage] = useState('');
   const [messageTone, setMessageTone] = useState('success');
   const [changedKeys, setChangedKeys] = useState(new Set());
+  const [repeatDaysOpen, setRepeatDaysOpen] = useState(false);
+  const [repeatDaysSaving, setRepeatDaysSaving] = useState(false);
+  const [repeatDaysForm, setRepeatDaysForm] = useState({
+    sourceDate: today,
+    startDate: today,
+    endDate: today,
+    overwrite: false
+  });
 
   async function load() {
     const response = await api.get(`/checks/day/${date}`, {
@@ -92,8 +102,10 @@ export default function Dashboard() {
   }, [date, selectedVesselId]);
 
   const flatChecks = useMemo(() => {
-    if (!data) return [];
-    return data.vessels.flatMap((vessel) => vessel.cameras.flatMap((camera) => camera.checks));
+    if (!Array.isArray(data?.vessels)) return [];
+    return data.vessels.flatMap((vessel) =>
+      (vessel.cameras || []).flatMap((camera) => camera.checks || [])
+    );
   }, [data]);
 
   function updateCheck(cameraId, slot, field, value) {
@@ -206,8 +218,67 @@ export default function Dashboard() {
     }
   }
 
+  function toggleRepeatDays() {
+    setRepeatDaysOpen((current) => {
+      const next = !current;
+      if (next) {
+        setRepeatDaysForm((form) => ({
+          ...form,
+          sourceDate: date,
+          startDate: form.startDate || date,
+          endDate: form.endDate || date
+        }));
+      }
+      return next;
+    });
+  }
+
+  async function repeatDays() {
+    if (!window.confirm('Repetir os status salvos da data de origem para os dias selecionados?')) return;
+
+    setRepeatDaysSaving(true);
+    setMessage('');
+    try {
+      const response = await api.post('/checks/repeat-days', {
+        ...repeatDaysForm,
+        vessel_id: selectedVesselId || undefined
+      });
+      await load();
+      setMessageTone(response.data.googleSync?.ok === false ? 'pending' : 'success');
+      setMessage(response.data.message || 'Dias repetidos com sucesso.');
+    } catch (error) {
+      setMessageTone('error');
+      setMessage(error.response?.data?.message || 'Não foi possível repetir os dias selecionados.');
+    } finally {
+      setRepeatDaysSaving(false);
+    }
+  }
+
+  async function fillMissingDays() {
+    if (!window.confirm('Preencher os dias vazios do intervalo copiando o último dia marcado anterior?')) return;
+
+    setRepeatDaysSaving(true);
+    setMessage('');
+    try {
+      const response = await api.post('/checks/fill-missing-days', {
+        startDate: repeatDaysForm.startDate,
+        endDate: repeatDaysForm.endDate,
+        vessel_id: selectedVesselId || undefined
+      });
+      await load();
+      setMessageTone(response.data.googleSync?.ok === false ? 'pending' : 'success');
+      setMessage(response.data.message || 'Dias vazios preenchidos com sucesso.');
+    } catch (error) {
+      setMessageTone('error');
+      setMessage(error.response?.data?.message || 'Não foi possível preencher os dias vazios.');
+    } finally {
+      setRepeatDaysSaving(false);
+    }
+  }
+
   const completed = flatChecks.filter((check) => check.status).length;
   const expected = flatChecks.length;
+  const canRepeatDays = user?.role === 'admin';
 
   return (
     <div className="space-y-5">
@@ -247,14 +318,28 @@ export default function Dashboard() {
       )}
 
       <section className="panel p-4">
-        <div className="flex flex-col gap-1 border-b border-slate-100 pb-3 sm:flex-row sm:items-baseline sm:gap-3">
-          <h2 className="font-semibold text-slate-950">Ações rápidas</h2>
-          <p className="text-sm text-slate-500">Use Todos os grupos para operar as 60 câmeras.</p>
+        <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-3">
+            <h2 className="font-semibold text-slate-950">Ações rápidas</h2>
+            <p className="text-sm text-slate-500">Use Todos os grupos para operar as 60 câmeras.</p>
+          </div>
+          {canRepeatDays && (
+            <button
+              type="button"
+              className="btn-secondary h-9 w-9 px-0 text-slate-500"
+              onClick={toggleRepeatDays}
+              title="Repetir dias"
+              aria-label="Repetir dias"
+              aria-expanded={repeatDaysOpen}
+            >
+              <CalendarPlus size={16} />
+            </button>
+          )}
         </div>
         <div className="mt-3 grid gap-3 xl:grid-cols-[112px_1fr] xl:items-center">
           <span className="text-sm font-medium text-slate-600">Restantes online</span>
           <div className="grid gap-2 sm:grid-cols-3">
-            {data?.timeSlots.map((slot) => (
+            {(data?.timeSlots || []).map((slot) => (
               <button className="btn-secondary h-10 border-emerald-200 px-3 text-emerald-700 hover:bg-emerald-50" onClick={() => fillRemainingOnline(slot)} key={`online-${slot}`}>
                 <SignalHigh size={16} />
                 {slot}
@@ -275,10 +360,64 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+        {canRepeatDays && repeatDaysOpen && (
+          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="grid gap-3 md:grid-cols-4">
+              <label className="text-sm font-medium text-slate-700">
+                Origem
+                <input
+                  type="date"
+                  className="input mt-2"
+                  value={repeatDaysForm.sourceDate}
+                  onChange={(event) => setRepeatDaysForm((form) => ({ ...form, sourceDate: event.target.value }))}
+                />
+              </label>
+              <label className="text-sm font-medium text-slate-700">
+                Início
+                <input
+                  type="date"
+                  className="input mt-2"
+                  value={repeatDaysForm.startDate}
+                  onChange={(event) => setRepeatDaysForm((form) => ({ ...form, startDate: event.target.value }))}
+                />
+              </label>
+              <label className="text-sm font-medium text-slate-700">
+                Fim
+                <input
+                  type="date"
+                  className="input mt-2"
+                  value={repeatDaysForm.endDate}
+                  onChange={(event) => setRepeatDaysForm((form) => ({ ...form, endDate: event.target.value }))}
+                />
+              </label>
+              <div className="flex items-end">
+                <button className="btn-primary h-10 w-full" onClick={repeatDays} disabled={repeatDaysSaving}>
+                  <CalendarPlus size={16} />
+                  {repeatDaysSaving ? 'Repetindo...' : 'Repetir'}
+                </button>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <label className="inline-flex items-center gap-2 text-sm text-slate-600">
+                <input
+                  type="checkbox"
+                  className="size-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                  checked={repeatDaysForm.overwrite}
+                  onChange={(event) => setRepeatDaysForm((form) => ({ ...form, overwrite: event.target.checked }))}
+                />
+                Substituir status já salvos nos dias selecionados
+              </label>
+              <button className="btn-secondary h-10 border-brand-200 px-3 text-brand-700 hover:bg-brand-50" onClick={fillMissingDays} disabled={repeatDaysSaving}>
+                <CalendarPlus size={16} />
+                Preencher vazios
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       <div className="space-y-5">
-        {data?.vessels.map((vessel) => (
+        {(data?.vessels || []).map((vessel) => (
           <section className="panel overflow-hidden" key={vessel.id}>
             <div className="border-b border-slate-200 bg-white px-4 py-3">
               <h2 className="font-semibold text-slate-950">{vessel.name}</h2>
@@ -288,19 +427,19 @@ export default function Dashboard() {
                 <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                   <tr>
                     <th className="w-48 px-4 py-3">Câmera</th>
-                    {data.timeSlots.map((slot) => (
+                    {(data?.timeSlots || []).map((slot) => (
                       <th className="px-4 py-3" key={slot}>{slot}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {vessel.cameras.map((camera) => (
+                  {(vessel.cameras || []).map((camera) => (
                     <tr key={camera.id} className="align-top">
                       <td className="px-4 py-4">
                         <p className="font-semibold text-slate-900">{camera.name}</p>
                         <p className="text-xs text-slate-500">{camera.location}</p>
                       </td>
-                      {camera.checks.map((check) => (
+                      {(camera.checks || []).map((check) => (
                         <td className="px-4 py-4" key={check.time_slot}>
                           <TrafficStatus value={check.status} onChange={(status) => updateCheck(camera.id, check.time_slot, 'status', status)} />
                           <textarea

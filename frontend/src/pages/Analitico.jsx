@@ -81,6 +81,29 @@ export default function Analitico() {
     document.title = previousTitle;
   }
 
+  function exportFrequentOfflineCsv() {
+    const rows = data?.frequentOffline || [];
+    const headers = ['Grupo', 'Camera', 'Dias offline', 'Registros offline', 'Ultimo offline'];
+    const escape = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
+    const csv = [
+      headers.map(escape).join(';'),
+      ...rows.map((row) => [
+        row.group,
+        row.name,
+        row.offlineDays,
+        row.offlineRecords,
+        row.lastOfflineDate
+      ].map(escape).join(';'))
+    ].join('\n');
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = `cameras-offline-frequente-${periodLabel}.csv`;
+    link.click();
+    URL.revokeObjectURL(objectUrl);
+  }
+
   const periodLabel = filters.start && filters.end ? `${filters.start} a ${filters.end}` : filters.month;
   const checksLabel = data?.cards.records || 0;
   const problemsChartHeight = Math.max(320, (data?.cameraProblems?.length || 0) * 34 + 70);
@@ -146,6 +169,50 @@ export default function Analitico() {
         <MetricCard label="Sem acesso" value={data?.cards.noAccess || 0} description="Último status" tone="gray" icon={Activity} />
         <MetricCard label="Disponibilidade" value={`${data?.cards.availability || 0}%`} description="Situação atual" tone="green" icon={ShieldCheck} />
       </div>
+
+      <section className="analytics-panel rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-slate-100 px-5 pb-3 pt-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-slate-950">Câmeras frequentemente offline</h2>
+            <p className="mt-1 text-xs text-slate-500">5 ou mais dias distintos em Offline no período filtrado.</p>
+          </div>
+          <button className="btn-secondary h-10 px-3" onClick={exportFrequentOfflineCsv} disabled={!data?.frequentOffline?.length}>
+            <FileDown size={16} />
+            Exportar lista
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+              <tr>
+                <th className="px-5 py-3">Grupo</th>
+                <th className="px-5 py-3">Câmera</th>
+                <th className="px-5 py-3">Dias offline</th>
+                <th className="px-5 py-3">Registros offline</th>
+                <th className="px-5 py-3">Último offline</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {(data?.frequentOffline || []).map((camera) => (
+                <tr key={camera.cameraId}>
+                  <td className="px-5 py-3 text-slate-700">{camera.group}</td>
+                  <td className="px-5 py-3 font-medium text-slate-950">{camera.name}</td>
+                  <td className="px-5 py-3 font-semibold text-red-700">{camera.offlineDays}</td>
+                  <td className="px-5 py-3 text-slate-700">{camera.offlineRecords}</td>
+                  <td className="px-5 py-3 text-slate-700">{camera.lastOfflineDate}</td>
+                </tr>
+              ))}
+              {!data?.frequentOffline?.length && (
+                <tr>
+                  <td className="px-5 py-6 text-center text-sm text-slate-500" colSpan={5}>
+                    Nenhuma câmera com 5 ou mais dias offline no período.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <div className="analytics-charts grid gap-5 xl:grid-cols-2">
         <ChartPanel title="Disponibilidade por grupo" context="Percentual Online considerando as verificações do período." className="h-[360px]">

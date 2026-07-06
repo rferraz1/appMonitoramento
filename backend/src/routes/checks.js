@@ -5,6 +5,28 @@ import { syncLocalWorkbook } from '../services/localExcelService.js';
 
 export const checksRouter = Router();
 const slots = ['10:00', '13:00', '16:00'];
+const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+
+function adminOnly(req, res, next) {
+  if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Acesso restrito ao administrador.' });
+  next();
+}
+
+function dateRange(start, end) {
+  if (!datePattern.test(start) || !datePattern.test(end)) return [];
+
+  const dates = [];
+  const current = new Date(`${start}T00:00:00Z`);
+  const last = new Date(`${end}T00:00:00Z`);
+  if (Number.isNaN(current.getTime()) || Number.isNaN(last.getTime()) || current > last) return [];
+
+  while (current <= last) {
+    dates.push(current.toISOString().slice(0, 10));
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+
+  return dates;
+}
 
 async function checksForDate(date) {
   return all(`
@@ -20,6 +42,105 @@ async function checksForDate(date) {
     WHERE checks.date = ?
     ORDER BY checks.date, checks.time_slot, COALESCE(cameras.excel_code, cameras.name)
   `, [date]);
+}
+
+async function checksForDates(dates) {
+  if (!dates.length) return [];
+  const placeholders = dates.map(() => '?').join(', ');
+  return all(`
+    SELECT checks.*,
+      cameras.excel_code,
+      cameras.name AS camera_name,
+      vessels.name AS vessel_name,
+      users.name AS user_name
+    FROM checks
+    JOIN cameras ON cameras.id = checks.camera_id
+    JOIN vessels ON vessels.id = checks.vessel_id
+    JOIN users ON users.id = checks.user_id
+    WHERE checks.date IN (${placeholders})
+    ORDER BY checks.date, checks.time_slot, COALESCE(cameras.excel_code, cameras.name)
+  `, dates);
+}
+
+async function activeChecksForDate(date, vesselId) {
+  const params = [date];
+  let sql = `
+    SELECT checks.*
+    FROM checks
+    JOIN cameras ON cameras.id = checks.camera_id
+    JOIN vessels ON vessels.id = checks.vessel_id
+    WHERE checks.date = ?
+      AND cameras.active = ${isPostgres ? 'true' : '1'}
+      AND vessels.active = ${isPostgres ? 'true' : '1'}
+  `;
+  if (vesselId) {
+    sql += ' AND checks.vessel_id = ?';
+    params.push(vesselId);
+  }
+  sql += ' ORDER BY checks.camera_id, checks.time_slot';
+  return all(sql, params);
+}
+
+async function latestCheckDateBefore(date, vesselId) {
+  const params = [date];
+  let sql = `
+    SELECT MAX(checks.date) AS date
+    FROM checks
+    JOIN cameras ON cameras.id = checks.camera_id
+    JOIN vessels ON vessels.id = checks.vessel_id
+    WHERE checks.date < ?
+      AND cameras.active = ${isPostgres ? 'true' : '1'}
+      AND vessels.active = ${isPostgres ? 'true' : '1'}
+  `;
+  if (vesselId) {
+    sql += ' AND checks.vessel_id = ?';
+    params.push(vesselId);
+  }
+  const row = await get(sql, params);
+  return row?.date || null;
+}
+
+async function saveRepeatedChecks(rowsToSave, userId) {
+  for (let index = 0; index < rowsToSave.length; index += 100) {
+    const batch = rowsToSave.slice(index, index + 100);
+    const values = batch.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)').join(', ');
+    const params = batch.flatMap((check) => [
+      check.date,
+      check.time_slot,
+      check.vessel_id,
+      check.camera_id,
+      check.status,
+      '',
+      '',
+      userId
+    ]);
+
+    await run(`
+      INSERT INTO checks (date, time_slot, vessel_id, camera_id, status, observation, behavior_note, user_id, updated_at)
+      VALUES ${values}
+      ON CONFLICT(date, time_slot, camera_id) DO UPDATE SET
+        status = EXCLUDED.status,
+        observation = EXCLUDED.observation,
+        behavior_note = EXCLUDED.behavior_note,
+        user_id = EXCLUDED.user_id,
+        updated_at = CURRENT_TIMESTAMP
+    `, params);
+  }
+
+  const savedDates = [...new Set(rowsToSave.map((check) => check.date))];
+  const savedKeys = new Set(rowsToSave.map((check) => `${check.date}:${check.camera_id}:${check.time_slot}`));
+  const savedChecks = (await checksForDates(savedDates)).filter((check) =>
+    savedKeys.has(`${check.date}:${check.camera_id}:${check.time_slot}`)
+  );
+
+  const settings = await get('SELECT enabled, google_webhook_url FROM excel_settings WHERE id = 1');
+  const googleSync = await syncGoogleSheets(settings, savedChecks, { timeoutMs: 15000 });
+
+  if (googleSync.ok) {
+    await run('UPDATE excel_settings SET last_sync_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1', [googleSync.syncedAt]);
+  }
+
+  return { savedDates, savedChecks, googleSync };
 }
 
 async function camerasForSync() {
@@ -184,4 +305,148 @@ checksRouter.post('/day/:date', async (req, res) => {
       localSync: { ok: false, message: error.message }
     });
   }
+});
+
+checksRouter.post('/repeat-days', adminOnly, async (req, res) => {
+  const {
+    sourceDate,
+    startDate,
+    endDate,
+    vessel_id: vesselId,
+    overwrite = false
+  } = req.body;
+
+  if (!datePattern.test(sourceDate || '') || !datePattern.test(startDate || '') || !datePattern.test(endDate || '')) {
+    return res.status(400).json({ message: 'Informe datas válidas para origem, início e fim.' });
+  }
+
+  const targetDates = dateRange(startDate, endDate).filter((date) => date !== sourceDate);
+  if (!targetDates.length) {
+    return res.status(400).json({ message: 'Selecione pelo menos um dia de destino diferente da data de origem.' });
+  }
+  if (targetDates.length > 31) {
+    return res.status(400).json({ message: 'Repita no máximo 31 dias por vez.' });
+  }
+
+  const sourceChecks = await activeChecksForDate(sourceDate, vesselId);
+  if (!sourceChecks.length) {
+    return res.status(400).json({ message: 'A data de origem não possui status salvos para repetir.' });
+  }
+
+  const existingChecks = await checksForDates(targetDates);
+  const existingKeys = new Set(existingChecks.map((check) => `${check.date}:${check.camera_id}:${check.time_slot}`));
+  const rowsToSave = [];
+  let skipped = 0;
+
+  targetDates.forEach((date) => {
+    sourceChecks.forEach((check) => {
+      const key = `${date}:${check.camera_id}:${check.time_slot}`;
+      if (!overwrite && existingKeys.has(key)) {
+        skipped += 1;
+        return;
+      }
+      rowsToSave.push({
+        date,
+        time_slot: check.time_slot,
+        vessel_id: check.vessel_id,
+        camera_id: check.camera_id,
+        status: check.status
+      });
+    });
+  });
+
+  if (!rowsToSave.length) {
+    return res.json({
+      message: 'Nenhum registro novo para repetir. Os dias selecionados já possuem status salvos.',
+      createdOrUpdated: 0,
+      skipped,
+      googleSync: { ok: false, skipped: true, message: 'Sem registros para sincronizar.' }
+    });
+  }
+
+  const { savedDates, googleSync } = await saveRepeatedChecks(rowsToSave, req.user.id);
+
+  const syncWarning = googleSync.ok ? '' : ` Planilha Google não atualizada: ${googleSync.message}`;
+  res.json({
+    message: `${rowsToSave.length} verificações repetidas em ${savedDates.length} dia(s).${syncWarning}`,
+    createdOrUpdated: rowsToSave.length,
+    skipped,
+    targetDays: savedDates.length,
+    googleSync
+  });
+});
+
+checksRouter.post('/fill-missing-days', adminOnly, async (req, res) => {
+  const { startDate, endDate, vessel_id: vesselId } = req.body;
+
+  if (!datePattern.test(startDate || '') || !datePattern.test(endDate || '')) {
+    return res.status(400).json({ message: 'Informe datas válidas para início e fim.' });
+  }
+
+  const targetDates = dateRange(startDate, endDate);
+  if (!targetDates.length) {
+    return res.status(400).json({ message: 'Selecione um intervalo válido para preencher.' });
+  }
+  if (targetDates.length > 31) {
+    return res.status(400).json({ message: 'Preencha no máximo 31 dias por vez.' });
+  }
+
+  const previousDate = await latestCheckDateBefore(startDate, vesselId);
+  let latestSourceChecks = previousDate ? await activeChecksForDate(previousDate, vesselId) : [];
+  const existingChecks = await checksForDates(targetDates);
+  const rowsToSave = [];
+  let skippedExistingDays = 0;
+  let skippedNoSourceDays = 0;
+  let filledDays = 0;
+
+  for (const targetDate of targetDates) {
+    const checksOnTargetDate = existingChecks.filter((check) =>
+      check.date === targetDate && (!vesselId || Number(check.vessel_id) === Number(vesselId))
+    );
+
+    if (checksOnTargetDate.length) {
+      latestSourceChecks = await activeChecksForDate(targetDate, vesselId);
+      skippedExistingDays += 1;
+      continue;
+    }
+
+    if (!latestSourceChecks.length) {
+      skippedNoSourceDays += 1;
+      continue;
+    }
+
+    const createdForDate = latestSourceChecks.map((check) => ({
+      date: targetDate,
+      time_slot: check.time_slot,
+      vessel_id: check.vessel_id,
+      camera_id: check.camera_id,
+      status: check.status
+    }));
+    rowsToSave.push(...createdForDate);
+    latestSourceChecks = createdForDate;
+    filledDays += 1;
+  }
+
+  if (!rowsToSave.length) {
+    return res.json({
+      message: 'Nenhum dia vazio foi preenchido. O intervalo já possui marcações ou não existe dia anterior marcado para copiar.',
+      createdOrUpdated: 0,
+      filledDays,
+      skippedExistingDays,
+      skippedNoSourceDays,
+      googleSync: { ok: false, skipped: true, message: 'Sem registros para sincronizar.' }
+    });
+  }
+
+  const { googleSync } = await saveRepeatedChecks(rowsToSave, req.user.id);
+  const syncWarning = googleSync.ok ? '' : ` Planilha Google não atualizada: ${googleSync.message}`;
+
+  res.json({
+    message: `${rowsToSave.length} verificações criadas em ${filledDays} dia(s) vazio(s), copiando o último dia marcado.${syncWarning}`,
+    createdOrUpdated: rowsToSave.length,
+    filledDays,
+    skippedExistingDays,
+    skippedNoSourceDays,
+    googleSync
+  });
 });

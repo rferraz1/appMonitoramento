@@ -53,6 +53,35 @@ analyticsRouter.get('/', async (req, res) => {
     return map;
   }, new Map()).values()].sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
 
+  const frequentOffline = [...checks.reduce((map, check) => {
+    if (check.status !== 'Offline') return map;
+    const current = map.get(check.camera_id) || {
+      cameraId: check.camera_id,
+      name: check.camera_name,
+      group: check.vessel_name,
+      label: `${check.vessel_name} - ${check.camera_name}`,
+      offlineDates: new Set(),
+      offlineRecords: 0,
+      lastOfflineDate: check.date
+    };
+    current.offlineDates.add(check.date);
+    current.offlineRecords += 1;
+    if (check.date > current.lastOfflineDate) current.lastOfflineDate = check.date;
+    map.set(check.camera_id, current);
+    return map;
+  }, new Map()).values()]
+    .map((camera) => ({
+      cameraId: camera.cameraId,
+      name: camera.name,
+      group: camera.group,
+      label: camera.label,
+      offlineDays: camera.offlineDates.size,
+      offlineRecords: camera.offlineRecords,
+      lastOfflineDate: camera.lastOfflineDate
+    }))
+    .filter((camera) => camera.offlineDays >= 5)
+    .sort((a, b) => b.offlineDays - a.offlineDays || b.offlineRecords - a.offlineRecords || a.label.localeCompare(b.label));
+
   const monthly = (await all(`
     SELECT substr(date, 1, 7) AS month,
       SUM(CASE WHEN status = 'Online' THEN 1 ELSE 0 END) AS online,
@@ -112,6 +141,7 @@ analyticsRouter.get('/', async (req, res) => {
     },
     groupAvailability,
     cameraProblems,
+    frequentOffline,
     monthlyStatus,
     sixMonths,
     annual
