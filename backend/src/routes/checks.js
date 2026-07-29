@@ -28,6 +28,46 @@ function dateRange(start, end) {
   return dates;
 }
 
+function normalizeHolidayDates(value) {
+  const dates = Array.isArray(value)
+    ? value
+    : String(value || '').split(/[\s,;]+/);
+
+  return new Set(
+    dates
+      .map((date) => String(date || '').trim())
+      .filter((date) => datePattern.test(date))
+  );
+}
+
+function isWeekend(date) {
+  const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return day === 0 || day === 6;
+}
+
+function businessDateRange(start, end, { skipWeekends = true, holidays = [] } = {}) {
+  const holidayDates = normalizeHolidayDates(holidays);
+  const selected = [];
+  const excluded = [];
+
+  dateRange(start, end).forEach((date) => {
+    const reason = skipWeekends && isWeekend(date)
+      ? 'fim de semana'
+      : holidayDates.has(date)
+        ? 'feriado'
+        : '';
+
+    if (reason) {
+      excluded.push({ date, reason });
+      return;
+    }
+
+    selected.push(date);
+  });
+
+  return { selected, excluded };
+}
+
 async function checksForDate(date) {
   return all(`
     SELECT checks.*,
@@ -313,16 +353,19 @@ checksRouter.post('/repeat-days', adminOnly, async (req, res) => {
     startDate,
     endDate,
     vessel_id: vesselId,
-    overwrite = false
+    overwrite = false,
+    skipWeekends = true,
+    holidays = []
   } = req.body;
 
   if (!datePattern.test(sourceDate || '') || !datePattern.test(startDate || '') || !datePattern.test(endDate || '')) {
     return res.status(400).json({ message: 'Informe datas válidas para origem, início e fim.' });
   }
 
-  const targetDates = dateRange(startDate, endDate).filter((date) => date !== sourceDate);
+  const { selected, excluded } = businessDateRange(startDate, endDate, { skipWeekends, holidays });
+  const targetDates = selected.filter((date) => date !== sourceDate);
   if (!targetDates.length) {
-    return res.status(400).json({ message: 'Selecione pelo menos um dia de destino diferente da data de origem.' });
+    return res.status(400).json({ message: 'Selecione pelo menos um dia útil de destino diferente da data de origem.' });
   }
   if (targetDates.length > 31) {
     return res.status(400).json({ message: 'Repita no máximo 31 dias por vez.' });
@@ -360,6 +403,7 @@ checksRouter.post('/repeat-days', adminOnly, async (req, res) => {
       message: 'Nenhum registro novo para repetir. Os dias selecionados já possuem status salvos.',
       createdOrUpdated: 0,
       skipped,
+      skippedDates: excluded,
       googleSync: { ok: false, skipped: true, message: 'Sem registros para sincronizar.' }
     });
   }
@@ -372,20 +416,27 @@ checksRouter.post('/repeat-days', adminOnly, async (req, res) => {
     createdOrUpdated: rowsToSave.length,
     skipped,
     targetDays: savedDates.length,
+    skippedDates: excluded,
     googleSync
   });
 });
 
 checksRouter.post('/fill-missing-days', adminOnly, async (req, res) => {
-  const { startDate, endDate, vessel_id: vesselId } = req.body;
+  const {
+    startDate,
+    endDate,
+    vessel_id: vesselId,
+    skipWeekends = true,
+    holidays = []
+  } = req.body;
 
   if (!datePattern.test(startDate || '') || !datePattern.test(endDate || '')) {
     return res.status(400).json({ message: 'Informe datas válidas para início e fim.' });
   }
 
-  const targetDates = dateRange(startDate, endDate);
+  const { selected: targetDates, excluded } = businessDateRange(startDate, endDate, { skipWeekends, holidays });
   if (!targetDates.length) {
-    return res.status(400).json({ message: 'Selecione um intervalo válido para preencher.' });
+    return res.status(400).json({ message: 'Selecione um intervalo com pelo menos um dia útil para preencher.' });
   }
   if (targetDates.length > 31) {
     return res.status(400).json({ message: 'Preencha no máximo 31 dias por vez.' });
@@ -434,6 +485,7 @@ checksRouter.post('/fill-missing-days', adminOnly, async (req, res) => {
       filledDays,
       skippedExistingDays,
       skippedNoSourceDays,
+      skippedDates: excluded,
       googleSync: { ok: false, skipped: true, message: 'Sem registros para sincronizar.' }
     });
   }
@@ -447,6 +499,7 @@ checksRouter.post('/fill-missing-days', adminOnly, async (req, res) => {
     filledDays,
     skippedExistingDays,
     skippedNoSourceDays,
+    skippedDates: excluded,
     googleSync
   });
 });

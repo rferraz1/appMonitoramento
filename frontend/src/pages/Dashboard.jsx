@@ -77,7 +77,9 @@ export default function Dashboard() {
     sourceDate: today,
     startDate: today,
     endDate: today,
-    overwrite: false
+    overwrite: false,
+    skipWeekends: true,
+    holidays: ''
   });
 
   async function load() {
@@ -263,6 +265,8 @@ export default function Dashboard() {
       const response = await api.post('/checks/fill-missing-days', {
         startDate: repeatDaysForm.startDate,
         endDate: repeatDaysForm.endDate,
+        skipWeekends: repeatDaysForm.skipWeekends,
+        holidays: repeatDaysForm.holidays,
         vessel_id: selectedVesselId || undefined
       });
       await load();
@@ -398,20 +402,44 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <label className="inline-flex items-center gap-2 text-sm text-slate-600">
-                <input
-                  type="checkbox"
-                  className="size-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                  checked={repeatDaysForm.overwrite}
-                  onChange={(event) => setRepeatDaysForm((form) => ({ ...form, overwrite: event.target.checked }))}
-                />
-                Substituir status já salvos nos dias selecionados
-              </label>
+              <div className="flex flex-col gap-2">
+                <label className="inline-flex items-center gap-2 text-sm text-slate-600">
+                  <input
+                    type="checkbox"
+                    className="size-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    checked={repeatDaysForm.skipWeekends}
+                    onChange={(event) => setRepeatDaysForm((form) => ({ ...form, skipWeekends: event.target.checked }))}
+                  />
+                  Ignorar sábados e domingos
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm text-slate-600">
+                  <input
+                    type="checkbox"
+                    className="size-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    checked={repeatDaysForm.overwrite}
+                    onChange={(event) => setRepeatDaysForm((form) => ({ ...form, overwrite: event.target.checked }))}
+                  />
+                  Substituir status já salvos nos dias selecionados
+                </label>
+              </div>
               <button className="btn-secondary h-10 border-brand-200 px-3 text-brand-700 hover:bg-brand-50" onClick={fillMissingDays} disabled={repeatDaysSaving}>
                 <CalendarPlus size={16} />
                 Preencher vazios
               </button>
             </div>
+            <label className="mt-3 block text-sm font-medium text-slate-700">
+              Feriados a ignorar
+              <input
+                type="text"
+                className="input mt-2"
+                placeholder="Ex.: 2026-07-09, 2026-09-07"
+                value={repeatDaysForm.holidays}
+                onChange={(event) => setRepeatDaysForm((form) => ({ ...form, holidays: event.target.value }))}
+              />
+              <span className="mt-1 block text-xs font-normal text-slate-500">
+                Separe por vírgula, espaço ou quebra de linha. Fins de semana já ficam ignorados por padrão.
+              </span>
+            </label>
           </div>
         )}
       </section>
