@@ -1,6 +1,6 @@
 # Apps Script Google Sheets
 
-Use este codigo no Apps Script da planilha configurada no app. Ele recebe o webhook do backend e atualiza `Base_App` e a aba mensal `App_*` em lote.
+Use este codigo no Apps Script da planilha configurada no app. Ele recebe uma data por webhook, remove as linhas existentes dessa mesma data em `Base_App` e na aba mensal `App_*`, e grava novamente todas as linhas do dia em lote.
 
 ```javascript
 const BASE_SHEET_NAME = 'Base_App';
@@ -33,25 +33,38 @@ const MONTH_SHEETS = [
 ];
 
 function doPost(e) {
-  const payload = parsePayload_(e);
-  const checks = Array.isArray(payload.checks) ? payload.checks : [];
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
 
-  if (!checks.length) {
-    return json_({ ok: true, message: 'Conexao com Google Sheets confirmada.', registros: 0 });
+  try {
+    const payload = parsePayload_(e);
+    const checks = Array.isArray(payload.checks) ? payload.checks : [];
+
+    if (!checks.length) {
+      return json_({ ok: true, message: 'Conexao com Google Sheets confirmada.', registros: 0 });
+    }
+
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const date = parseDate_(payload.date);
+    const dateKey = formatDateKey_(date);
+    const rows = checks.map((check) => buildRow_(date, check));
+
+    replaceDateRows_(getOrCreateSheet_(spreadsheet, BASE_SHEET_NAME), dateKey, rows);
+    replaceDateRows_(getOrCreateSheet_(spreadsheet, monthSheetName_(date)), dateKey, rows);
+
+    return json_({
+      ok: true,
+      message: 'Planilha Google atualizada.',
+      registros: rows.length
+    });
+  } catch (error) {
+    return json_({
+      ok: false,
+      message: error.message || String(error)
+    });
+  } finally {
+    lock.releaseLock();
   }
-
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const date = parseDate_(payload.date);
-  const rows = checks.map((check) => buildRow_(date, check));
-
-  upsertRows_(getOrCreateSheet_(spreadsheet, BASE_SHEET_NAME), rows);
-  upsertRows_(getOrCreateSheet_(spreadsheet, monthSheetName_(date)), rows);
-
-  return json_({
-    ok: true,
-    message: 'Planilha Google atualizada.',
-    registros: rows.length
-  });
 }
 
 function parsePayload_(e) {
@@ -74,29 +87,54 @@ function buildRow_(date, check) {
   ];
 }
 
-function upsertRows_(sheet, incomingRows) {
+function replaceDateRows_(sheet, dateKey, rows) {
   ensureHeader_(sheet);
+  deleteRowsForDate_(sheet, dateKey);
 
+  if (!rows.length) return;
+
+  const startRow = sheet.getLastRow() + 1;
+  sheet.getRange(startRow, 1, rows.length, HEADERS.length).setValues(rows);
+  sheet.getRange(startRow, 1, rows.length, 1).setNumberFormat('dd/MM/yyyy');
+  sheet.getRange(startRow, 10, rows.length, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+}
+
+function deleteRowsForDate_(sheet, dateKey) {
   const lastRow = sheet.getLastRow();
-  const existingRows = lastRow > 1
-    ? sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues()
-    : [];
+  if (lastRow <= 1) return;
 
-  const incomingKeys = new Set(incomingRows.map(rowKey_));
-  const keptRows = existingRows.filter((row) => !incomingKeys.has(rowKey_(row)));
-  const nextRows = keptRows.concat(incomingRows).sort(compareRows_);
+  const values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  const rowsToDelete = [];
 
-  if (lastRow > 1) {
-    sheet.getRange(2, 1, lastRow - 1, HEADERS.length).clearContent();
+  values.forEach((row, index) => {
+    if (dateKey_(row[0]) === dateKey) {
+      rowsToDelete.push(index + 2);
+    }
+  });
+
+  deleteContiguousRows_(sheet, rowsToDelete);
+}
+
+function deleteContiguousRows_(sheet, rows) {
+  if (!rows.length) return;
+
+  rows.sort((a, b) => b - a);
+  let blockEnd = rows[0];
+  let blockStart = rows[0];
+
+  for (let index = 1; index < rows.length; index += 1) {
+    const row = rows[index];
+    if (row === blockStart - 1) {
+      blockStart = row;
+      continue;
+    }
+
+    sheet.deleteRows(blockStart, blockEnd - blockStart + 1);
+    blockStart = row;
+    blockEnd = row;
   }
 
-  if (nextRows.length) {
-    sheet.getRange(2, 1, nextRows.length, HEADERS.length).setValues(nextRows);
-    sheet.getRange(2, 1, nextRows.length, 1).setNumberFormat('dd/MM/yyyy');
-    sheet.getRange(2, 10, nextRows.length, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
-  }
-
-  sheet.autoResizeColumns(1, HEADERS.length);
+  sheet.deleteRows(blockStart, blockEnd - blockStart + 1);
 }
 
 function ensureHeader_(sheet) {
@@ -120,25 +158,6 @@ function monthSheetName_(date) {
   return MONTH_SHEETS[date.getMonth()];
 }
 
-function rowKey_(row) {
-  return [dateKey_(row[0]), row[1], row[4]].join('|');
-}
-
-function dateKey_(value) {
-  if (value instanceof Date) {
-    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  }
-
-  const text = String(value || '').trim();
-  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
-
-  const br = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (br) return `${br[3]}-${String(br[2]).padStart(2, '0')}-${String(br[1]).padStart(2, '0')}`;
-
-  return text;
-}
-
 function parseDate_(value) {
   if (value instanceof Date) return value;
 
@@ -152,8 +171,21 @@ function parseDate_(value) {
   throw new Error(`Data invalida: ${value}`);
 }
 
-function compareRows_(a, b) {
-  return rowKey_(a).localeCompare(rowKey_(b));
+function dateKey_(value) {
+  if (value instanceof Date) return formatDateKey_(value);
+
+  const text = String(value || '').trim();
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+  const br = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (br) return `${br[3]}-${String(br[2]).padStart(2, '0')}-${String(br[1]).padStart(2, '0')}`;
+
+  return text;
+}
+
+function formatDateKey_(date) {
+  return Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM-dd');
 }
 
 function json_(body) {
