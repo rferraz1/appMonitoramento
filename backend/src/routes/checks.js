@@ -6,6 +6,7 @@ import { syncLocalWorkbook } from '../services/localExcelService.js';
 export const checksRouter = Router();
 const slots = ['10:00', '13:00', '16:00'];
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+const googleSheetsSyncTimeoutMs = 55000;
 
 function adminOnly(req, res, next) {
   if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Acesso restrito ao administrador.' });
@@ -174,7 +175,7 @@ async function saveRepeatedChecks(rowsToSave, userId) {
   );
 
   const settings = await get('SELECT enabled, google_webhook_url FROM excel_settings WHERE id = 1');
-  const googleSync = await syncGoogleSheets(settings, savedChecks, { timeoutMs: 15000 });
+  const googleSync = await syncGoogleSheets(settings, savedChecks, { timeoutMs: googleSheetsSyncTimeoutMs });
 
   if (googleSync.ok) {
     await run('UPDATE excel_settings SET last_sync_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1', [googleSync.syncedAt]);
@@ -319,7 +320,7 @@ checksRouter.post('/day/:date', async (req, res) => {
   }
 
   const settings = await get('SELECT enabled, google_webhook_url FROM excel_settings WHERE id = 1');
-  const googleSync = await syncGoogleSheets(settings, savedChecks, { timeoutMs: 15000 });
+  const googleSync = await syncGoogleSheets(settings, savedChecks, { timeoutMs: googleSheetsSyncTimeoutMs });
 
   if (googleSync.ok) {
     await run('UPDATE excel_settings SET last_sync_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1', [googleSync.syncedAt]);
